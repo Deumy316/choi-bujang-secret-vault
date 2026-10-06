@@ -57,3 +57,16 @@ A와 B는 각자 자신의 메모만 조회·추가·수정·삭제할 수 있�
 
 Supabase notes 테이블에는 RLS를 활성화하고 anon의 테이블 권한을 제거했습니다.
 authenticated에는 SELECT·INSERT·UPDATE·DELETE만 허용하며 각 정책은 auth.uid() = owner_id 조건으로 제한합니다.
+
+## 5단계 저장점
+
+브라우저의 메모 읽기·추가·수정·삭제는 모두 Vercel 서버 함수를 통해 처리하도록 유지했습니다.
+브라우저에서는 Supabase notes 테이블을 직접 호출하지 않습니다.
+
+로그인도 `/api/auth/login` 서버 함수를 통해 처리하도록 변경하여 화면 코드에서 Supabase 공개 키와 createClient 사용을 제거했습니다.
+로그인 후 받은 토큰은 서버의 메모 API 요청에만 사용합니다.
+
+Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한을 모두 회수했습니다.
+따라서 공개 키나 일반 로그인 토큰으로 원본 REST API를 직접 호출해도 메모 자료에 접근할 수 없습니다.
+
+서버 함수는 기존 SUPABASE_SECRET_KEY를 사용하며, 4단계에서 만든 로그인 검증과 owner_id 소유권 검사는 그대로 유지합니다.

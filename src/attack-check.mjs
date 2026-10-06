@@ -2,8 +2,8 @@
 // Never return tokens, private keys, real names, or note bodies.
 
 export async function runAttackChecks(config) {
-  if (config.step !== 4) {
-    throw new Error('4단계 공격 점검은 step 4에서 실행해야 합니다.');
+  if (config.step !== 5) {
+    throw new Error('5단계 공격 점검은 step 5에서 실행해야 합니다.');
   }
 
   let app;
@@ -79,7 +79,7 @@ export async function runAttackChecks(config) {
       const identity = await identityResponse.json();
 
       identityAvailable =
-        identity?.step === 4 &&
+        identity?.step === 5 &&
         typeof identity?.repoUrl === 'string' &&
         typeof identity?.publicAppUrl === 'string';
     } catch {
@@ -104,10 +104,10 @@ export async function runAttackChecks(config) {
     },
     {
       attackId: 'deployment_identity_available',
-      expected: '배포 주소의 /aleph.json에서 4단계 식별 정보를 확인',
+      expected: '배포 주소의 /aleph.json에서 5단계 식별 정보를 확인',
       observed: identityAvailable
-        ? '/aleph.json에서 4단계 배포 식별 정보를 확인함'
-        : `/aleph.json의 4단계 배포 식별 정보를 확인하지 못함 (HTTP ${identityResponse.status})`,
+        ? '/aleph.json에서 5단계 배포 식별 정보를 확인함'
+        : `/aleph.json의 5단계 배포 식별 정보를 확인하지 못함 (HTTP ${identityResponse.status})`,
     },
   ];
 }
