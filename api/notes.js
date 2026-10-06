@@ -21,6 +21,7 @@ export default async function handler(req, res) {
         .order('id', { ascending: true });
 
     if (result.error) {
+        console.error('Supabase error:', result.error);
         return res.status(500).json({ error: 'Failed to load notes' });
     }
 
