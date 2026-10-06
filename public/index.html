@@ -237,6 +237,7 @@
 
       passwordInput.value = '';
       showLoggedIn(result.data.user);
+      await loadNotes();
     });
 
     logoutButton.addEventListener('click', async function () {
@@ -249,6 +250,7 @@
       }
 
       showLoggedOut('로그아웃되었습니다.');
+      await loadNotes();
     });
 
     supabase.auth.onAuthStateChange(function (event, session) {
@@ -260,40 +262,63 @@
     });
 
     await refreshAuthState();
+    await loadNotes();
 
-    try {
-      var response = await fetch('/api/notes', {
-        cache: 'no-store'
-      });
+    async function loadNotes() {
+      var sessionResult = await supabase.auth.getSession();
+      var session = sessionResult.data.session;
 
-      if (!response.ok) {
-        throw new Error('가상 메모를 읽을 수 없습니다.');
-      }
-
-      var data = await response.json();
-
-      if (!Array.isArray(data.notes)) {
-        throw new Error('가상 메모 형식이 올바르지 않습니다.');
-      }
-
-      var items = data.notes.map(function (note) {
+      if (!session) {
         var item = document.createElement('li');
-        var title = document.createElement('strong');
-        var content = document.createElement('span');
+        item.textContent = '로그인하면 가상 메모를 볼 수 있습니다.';
+        list.replaceChildren(item);
+        return;
+      }
 
-        title.textContent = note.title;
-        content.textContent = note.content;
+      try {
+        var response = await fetch('/api/notes', {
+          method: 'GET',
+          cache: 'no-store',
+          headers: {
+            Authorization: 'Bearer ' + session.access_token
+          }
+        });
 
-        item.append(title, content);
+        if (!response.ok) {
+          var errorData = await response.json().catch(function () {
+            return {};
+          });
 
-        return item;
-      });
+          throw new Error(
+            errorData.error || '가상 메모를 읽을 수 없습니다.'
+          );
+        }
 
-      list.replaceChildren(...items);
-    } catch (error) {
-      var item = document.createElement('li');
-      item.textContent = error.message;
-      list.replaceChildren(item);
+        var data = await response.json();
+
+        if (!Array.isArray(data.notes)) {
+          throw new Error('가상 메모 형식이 올바르지 않습니다.');
+        }
+
+        var items = data.notes.map(function (note) {
+          var item = document.createElement('li');
+          var title = document.createElement('strong');
+          var content = document.createElement('span');
+
+          title.textContent = note.title;
+          content.textContent = note.content;
+
+          item.append(title, content);
+
+          return item;
+        });
+
+        list.replaceChildren(...items);
+      } catch (error) {
+        var item = document.createElement('li');
+        item.textContent = error.message;
+        list.replaceChildren(item);
+      }
     }
   </script>
 </body>
