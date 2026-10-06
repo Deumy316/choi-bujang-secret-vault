@@ -4,7 +4,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BYTE BACK | 점령된 자료실</title>
+  <title>BYTE BACK | 최부장의 자료실</title>
+
   <style>
     :root {
       color-scheme: dark;
@@ -43,13 +44,65 @@
       color: #bfd0e5;
     }
 
-    .notice {
+    .auth-box {
       margin: 26px 0;
-      padding: 18px;
-      border: 1px solid #d07384;
+      padding: 20px;
+      border: 1px solid #51667c;
       border-radius: 14px;
-      color: #ffe3e8;
-      background: #612a3544;
+      background: #162438;
+    }
+
+    .auth-box h2 {
+      margin-top: 0;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      font-weight: 700;
+    }
+
+    input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid #51667c;
+      border-radius: 9px;
+      background: #0f1b2b;
+      color: #ecf4ff;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    #loginButton {
+      background: #8ad8df;
+      color: #10202b;
+    }
+
+    #logoutButton {
+      background: #d07384;
+      color: white;
+    }
+
+    #authStatus {
+      margin-top: 14px;
+      color: #bfd0e5;
+    }
+
+    .error {
+      color: #ff9dad !important;
     }
 
     ul {
@@ -75,37 +128,170 @@
     li span {
       color: #bfd0e5;
     }
+
+    [hidden] {
+      display: none !important;
+    }
   </style>
 </head>
 
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 1단계 피해 확인</div>
-    <h1>점령된 자료실</h1>
-    <p>지금은 보호 장치가 없는 상태입니다. 아래 기록은 모두 실습을 위해 만든 가상 자료입니다.</p>
-    <div class="notice">로그인하지 않은 방문자도 자료를 볼 수 있습니다. 공개 범위를 확인하고, 다음 제작 단계에서 접근을 차례로 막아 주세요.</div>
+    <div class="eyebrow">BYTE BACK · 3단계</div>
+    <h1>최부장의 자료실</h1>
+
+    <p>
+      Supabase Auth를 사용해 실제 로그인과 로그아웃 상태를 확인합니다.
+    </p>
+
+    <section class="auth-box">
+      <h2>로그인</h2>
+
+      <form id="loginForm">
+        <div class="field">
+          <label for="email">이메일</label>
+          <input id="email" type="email" autocomplete="username" required>
+        </div>
+
+        <div class="field">
+          <label for="password">비밀번호</label>
+          <input id="password" type="password" autocomplete="current-password" required>
+        </div>
+
+        <button id="loginButton" type="submit">로그인</button>
+      </form>
+
+      <button id="logoutButton" type="button" hidden>로그아웃</button>
+
+      <div id="authStatus" aria-live="polite">
+        로그인 상태를 확인하는 중입니다.
+      </div>
+    </section>
+
+    <h2>가상 메모</h2>
+
     <ul id="notes" aria-live="polite">
-      <li>가상 자료를 불러오는 중입니다.</li>
+      <li>가상 메모를 불러오는 중입니다.</li>
     </ul>
   </main>
+
   <script type="module">
-    const list = document.querySelector('#notes');
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    var SUPABASE_URL = '[https://yxvjsvirxxzahgekgkfi.supabase.co]';
+    var SUPABASE_PUBLISHABLE_KEY = '[sb_publishable_bEQkQZmef3VYyXZ6_um4Hw_ZR8vC6xz]';
+
+    var supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+    var loginForm = document.querySelector('#loginForm');
+    var logoutButton = document.querySelector('#logoutButton');
+    var authStatus = document.querySelector('#authStatus');
+    var emailInput = document.querySelector('#email');
+    var passwordInput = document.querySelector('#password');
+    var list = document.querySelector('#notes');
+
+    function showLoggedOut(message) {
+      loginForm.hidden = false;
+      logoutButton.hidden = true;
+      authStatus.classList.remove('error');
+      authStatus.textContent = message || '로그인하지 않은 상태입니다.';
+    }
+
+    function showLoggedIn(user) {
+      loginForm.hidden = true;
+      logoutButton.hidden = false;
+      authStatus.classList.remove('error');
+      authStatus.textContent = '로그인됨: ' + user.email;
+    }
+
+    async function refreshAuthState() {
+      var result = await supabase.auth.getSession();
+      var session = result.data.session;
+
+      if (session && session.user) {
+        showLoggedIn(session.user);
+      } else {
+        showLoggedOut();
+      }
+    }
+
+    loginForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+
+      authStatus.classList.remove('error');
+      authStatus.textContent = '로그인 중입니다.';
+
+      var result = await supabase.auth.signInWithPassword({
+        email: emailInput.value,
+        password: passwordInput.value
+      });
+
+      if (result.error) {
+        authStatus.classList.add('error');
+        authStatus.textContent = '로그인 실패: ' + result.error.message;
+        return;
+      }
+
+      passwordInput.value = '';
+      showLoggedIn(result.data.user);
+    });
+
+    logoutButton.addEventListener('click', async function () {
+      var result = await supabase.auth.signOut();
+
+      if (result.error) {
+        authStatus.classList.add('error');
+        authStatus.textContent = '로그아웃 실패: ' + result.error.message;
+        return;
+      }
+
+      showLoggedOut('로그아웃되었습니다.');
+    });
+
+    supabase.auth.onAuthStateChange(function (event, session) {
+      if (session && session.user) {
+        showLoggedIn(session.user);
+      } else {
+        showLoggedOut();
+      }
+    });
+
+    await refreshAuthState();
+
     try {
-      const response = await fetch('/api/notes', { cache: 'no-store' });
-      if (!response.ok) throw new Error('공개 자료를 읽을 수 없습니다.');
-      const data = await response.json();
-      if (!Array.isArray(data.notes)) throw new Error('자료 형식이 맞지 않습니다.');
-      list.replaceChildren(...data.notes.map(note => {
-        const item = document.createElement('li');
-        const title = document.createElement('strong');
-        const content = document.createElement('span');
+      var response = await fetch('/api/notes', {
+        cache: 'no-store'
+      });
+
+      if (!response.ok) {
+        throw new Error('가상 메모를 읽을 수 없습니다.');
+      }
+
+      var data = await response.json();
+
+      if (!Array.isArray(data.notes)) {
+        throw new Error('가상 메모 형식이 올바르지 않습니다.');
+      }
+
+      var items = data.notes.map(function (note) {
+        var item = document.createElement('li');
+        var title = document.createElement('strong');
+        var content = document.createElement('span');
+
         title.textContent = note.title;
         content.textContent = note.content;
+
         item.append(title, content);
+
         return item;
-      }));
+      });
+
+      list.replaceChildren(...items);
     } catch (error) {
-      const item = document.createElement('li');
+      var item = document.createElement('li');
       item.textContent = error.message;
       list.replaceChildren(item);
     }
