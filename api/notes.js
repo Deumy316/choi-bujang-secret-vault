@@ -63,11 +63,12 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
         var result = await supabase
             .from('notes')
-            .select('note_id, title, content, owner_id')
+            .select('note_id, title, content')
+            .eq('owner_id', login.userId)
             .order('id', { ascending: true });
 
         if (result.error) {
-            console.error('Supabase error:', result.error);
+            console.error('Supabase list error:', result.error);
 
             return res.status(500).json({
                 error: 'Failed to load notes'
@@ -90,11 +91,6 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
         var body = req.body || {};
 
-        var noteId =
-            typeof body.id === 'string' && body.id
-                ? body.id
-                : randomUUID();
-
         if (
             typeof body.title !== 'string' ||
             !body.title.trim() ||
@@ -105,6 +101,11 @@ export default async function handler(req, res) {
                 error: 'title and body are required'
             });
         }
+
+        var noteId =
+            typeof body.id === 'string' && body.id
+                ? body.id
+                : randomUUID();
 
         var insertResult = await supabase
             .from('notes')

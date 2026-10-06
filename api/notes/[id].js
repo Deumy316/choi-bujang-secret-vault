@@ -35,6 +35,20 @@ function getSupabase() {
     );
 }
 
+async function findNote(supabase, noteId) {
+    var result = await supabase
+        .from('notes')
+        .select('note_id, title, content, owner_id')
+        .eq('note_id', noteId)
+        .maybeSingle();
+
+    if (result.error) {
+        throw result.error;
+    }
+
+    return result.data;
+}
+
 export default async function handler(req, res) {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
         return res.status(500).json({
@@ -73,32 +87,35 @@ export default async function handler(req, res) {
     }
 
     var supabase = getSupabase();
+    var existingNote;
+
+    try {
+        existingNote = await findNote(supabase, noteId);
+    } catch (error) {
+        console.error('Supabase note lookup error:', error);
+
+        return res.status(500).json({
+            error: 'Failed to load note'
+        });
+    }
+
+    if (!existingNote) {
+        return res.status(404).json({
+            error: 'Note not found'
+        });
+    }
+
+    if (existingNote.owner_id !== login.userId) {
+        return res.status(403).json({
+            error: 'Forbidden'
+        });
+    }
 
     if (req.method === 'GET') {
-        var getResult = await supabase
-            .from('notes')
-            .select('note_id, title, content')
-            .eq('note_id', noteId)
-            .maybeSingle();
-
-        if (getResult.error) {
-            console.error('Supabase get error:', getResult.error);
-
-            return res.status(500).json({
-                error: 'Failed to load note'
-            });
-        }
-
-        if (!getResult.data) {
-            return res.status(404).json({
-                error: 'Note not found'
-            });
-        }
-
         return res.status(200).json({
-            id: getResult.data.note_id,
-            title: getResult.data.title,
-            body: getResult.data.content
+            id: existingNote.note_id,
+            title: existingNote.title,
+            body: existingNote.content
         });
     }
 
@@ -120,10 +137,12 @@ export default async function handler(req, res) {
             .from('notes')
             .update({
                 title: body.title.trim(),
-                content: body.body.trim()
+                content: body.body.trim(),
+                owner_id: login.userId
             })
             .eq('note_id', noteId)
-            .select('note_id');
+            .eq('owner_id', login.userId)
+            .select('note_id, owner_id');
 
         if (updateResult.error) {
             console.error('Supabase update error:', updateResult.error);
@@ -133,9 +152,13 @@ export default async function handler(req, res) {
             });
         }
 
-        if (!updateResult.data || updateResult.data.length === 0) {
-            return res.status(404).json({
-                error: 'Note not found'
+        if (
+            !updateResult.data ||
+            updateResult.data.length !== 1 ||
+            updateResult.data[0].owner_id !== login.userId
+        ) {
+            return res.status(403).json({
+                error: 'Forbidden'
             });
         }
 
@@ -149,6 +172,7 @@ export default async function handler(req, res) {
             .from('notes')
             .delete()
             .eq('note_id', noteId)
+            .eq('owner_id', login.userId)
             .select('note_id');
 
         if (deleteResult.error) {
@@ -159,9 +183,9 @@ export default async function handler(req, res) {
             });
         }
 
-        if (!deleteResult.data || deleteResult.data.length === 0) {
-            return res.status(404).json({
-                error: 'Note not found'
+        if (!deleteResult.data || deleteResult.data.length !== 1) {
+            return res.status(403).json({
+                error: 'Forbidden'
             });
         }
 
