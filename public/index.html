@@ -218,15 +218,6 @@
   </main>
 
   <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-    var SUPABASE_URL = 'https://yxvjsvirxxzahgekgkfi.supabase.co';
-    var SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_bEQkQZmef3VYyXZ6_um4Hw_ZR8vC6xz';
-
-    var supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_PUBLISHABLE_KEY
-    );
 
     var loginForm = document.querySelector('#loginForm');
     var logoutButton = document.querySelector('#logoutButton');
@@ -242,9 +233,48 @@
 
     var list = document.querySelector('#notes');
 
+    var SESSION_KEY = 'byteback_session';
+
+    function saveSession(accessToken, email) {
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({
+          access_token: accessToken,
+          user: {
+            email: email
+          }
+        })
+      );
+    }
+
+    function clearSession() {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+
     async function getSession() {
-      var result = await supabase.auth.getSession();
-      return result.data.session;
+      var saved = sessionStorage.getItem(SESSION_KEY);
+
+      if (!saved) {
+        return null;
+      }
+
+      try {
+        var session = JSON.parse(saved);
+
+        if (
+          !session ||
+          typeof session.access_token !== 'string' ||
+          !session.access_token
+        ) {
+          clearSession();
+          return null;
+        }
+
+        return session;
+      } catch (error) {
+        clearSession();
+        return null;
+      }
     }
 
     async function apiFetch(url, options) {
@@ -314,35 +344,47 @@
       authStatus.classList.remove('error');
       authStatus.textContent = '로그인 중입니다.';
 
-      var result = await supabase.auth.signInWithPassword({
-        email: emailInput.value,
-        password: passwordInput.value
-      });
+      try {
+        var response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: emailInput.value,
+            password: passwordInput.value
+          }),
+          cache: 'no-store'
+        });
 
-      if (result.error) {
+        var data = await response.json().catch(function () {
+          return {};
+        });
+
+        if (!response.ok) {
+          throw new Error(data.error || '로그인에 실패했습니다.');
+        }
+
+        saveSession(
+          data.access_token,
+          data.user.email
+        );
+
+        passwordInput.value = '';
+
+        showLoggedIn(data.user);
+        await loadNotes();
+      } catch (error) {
         authStatus.classList.add('error');
         authStatus.textContent =
-          '로그인 실패: ' + result.error.message;
-        return;
+          '로그인 실패: ' + error.message;
       }
-
-      passwordInput.value = '';
-
-      showLoggedIn(result.data.user);
-      await loadNotes();
     });
 
     logoutButton.addEventListener('click', async function () {
-      var result = await supabase.auth.signOut();
+      clearSession();
 
-      if (result.error) {
-        authStatus.classList.add('error');
-        authStatus.textContent =
-          '로그아웃 실패: ' + result.error.message;
-        return;
-      }
-
-      showLoggedOut('로그아웃되었습니다.');
+      showLoggedOut('로그아웃하였습니다.');
       await loadNotes();
     });
 

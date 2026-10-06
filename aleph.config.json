@@ -1,5 +1,5 @@
 {
-  "step": 4,
+  "step": 5,
   "repoUrl": "https://github.com/Deumy316/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-three-cyan.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",
@@ -10,12 +10,13 @@
     "audience": "authenticated"
   },
   "allowedRoutes": [
+    "POST /api/auth/login",
     "GET /api/notes",
     "POST /api/notes",
     "GET /api/notes/:id",
     "PUT /api/notes/:id",
     "DELETE /api/notes/:id"
   ],
-  "originalApiUrl": null,
+  "originalApiUrl": "https://yxvjsvirxxzahgekgkfi.supabase.co/rest/v1/notes",
   "restoreRoute": null
 }
