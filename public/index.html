@@ -159,7 +159,7 @@
 
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 3단계</div>
+    <div class="eyebrow">BYTE BACK · 5단계</div>
     <h1>최부장의 자료실</h1>
 
     <p>
@@ -533,14 +533,6 @@
         list.replaceChildren(errorItem);
       }
     }
-
-    supabase.auth.onAuthStateChange(function (event, session) {
-      if (session && session.user) {
-        showLoggedIn(session.user);
-      } else {
-        showLoggedOut();
-      }
-    });
 
     await refreshAuthState();
     await loadNotes();
