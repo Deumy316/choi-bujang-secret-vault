@@ -40,6 +40,7 @@ export function deploymentIdentity(env, config) {
     publicAppUrl: `https://${host.toLowerCase()}`,
     judgeIssuer: config.judgeIssuer,
     sampleMarker: config.sampleMarker,
+    allowedRoutes: config.allowedRoutes,
     originalApiUrl: config.originalApiUrl,
   };
 }
