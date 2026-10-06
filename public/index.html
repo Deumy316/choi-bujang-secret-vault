@@ -38,22 +38,22 @@
       line-height: 1.2;
     }
 
+    h2 {
+      margin-top: 28px;
+    }
+
     p {
       font-size: 17px;
       line-height: 1.7;
       color: #bfd0e5;
     }
 
-    .auth-box {
+    .box {
       margin: 26px 0;
       padding: 20px;
       border: 1px solid #51667c;
       border-radius: 14px;
       background: #162438;
-    }
-
-    .auth-box h2 {
-      margin-top: 0;
     }
 
     .field {
@@ -66,7 +66,8 @@
       font-weight: 700;
     }
 
-    input {
+    input,
+    textarea {
       box-sizing: border-box;
       width: 100%;
       padding: 11px 12px;
@@ -75,6 +76,11 @@
       background: #0f1b2b;
       color: #ecf4ff;
       font-size: 16px;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
     }
 
     button {
@@ -86,17 +92,25 @@
       font-weight: 700;
     }
 
-    #loginButton {
+    #loginButton,
+    #createButton {
       background: #8ad8df;
       color: #10202b;
     }
 
-    #logoutButton {
+    #logoutButton,
+    .deleteButton {
       background: #d07384;
       color: white;
     }
 
-    #authStatus {
+    .editButton {
+      background: #b8c9dd;
+      color: #10202b;
+    }
+
+    #authStatus,
+    #noteStatus {
       margin-top: 14px;
       color: #bfd0e5;
     }
@@ -126,7 +140,15 @@
     }
 
     li span {
+      display: block;
       color: #bfd0e5;
+      white-space: pre-wrap;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
     }
 
     [hidden] {
@@ -141,10 +163,10 @@
     <h1>최부장의 자료실</h1>
 
     <p>
-      Supabase Auth를 사용해 실제 로그인과 로그아웃 상태를 확인합니다.
+      로그인한 사용자는 가상 메모를 조회하고 추가·수정·삭제할 수 있습니다.
     </p>
 
-    <section class="auth-box">
+    <section class="box">
       <h2>로그인</h2>
 
       <form id="loginForm">
@@ -168,10 +190,30 @@
       </div>
     </section>
 
+    <section id="createBox" class="box" hidden>
+      <h2>새 메모 추가</h2>
+
+      <form id="createForm">
+        <div class="field">
+          <label for="noteTitle">제목</label>
+          <input id="noteTitle" type="text" required>
+        </div>
+
+        <div class="field">
+          <label for="noteBody">내용</label>
+          <textarea id="noteBody" required></textarea>
+        </div>
+
+        <button id="createButton" type="submit">메모 추가</button>
+      </form>
+
+      <div id="noteStatus" aria-live="polite"></div>
+    </section>
+
     <h2>가상 메모</h2>
 
     <ul id="notes" aria-live="polite">
-      <li>가상 메모를 불러오는 중입니다.</li>
+      <li>로그인하면 가상 메모를 볼 수 있습니다.</li>
     </ul>
   </main>
 
@@ -191,25 +233,73 @@
     var authStatus = document.querySelector('#authStatus');
     var emailInput = document.querySelector('#email');
     var passwordInput = document.querySelector('#password');
+
+    var createBox = document.querySelector('#createBox');
+    var createForm = document.querySelector('#createForm');
+    var noteTitleInput = document.querySelector('#noteTitle');
+    var noteBodyInput = document.querySelector('#noteBody');
+    var noteStatus = document.querySelector('#noteStatus');
+
     var list = document.querySelector('#notes');
+
+    async function getSession() {
+      var result = await supabase.auth.getSession();
+      return result.data.session;
+    }
+
+    async function apiFetch(url, options) {
+      var session = await getSession();
+
+      if (!session) {
+        throw new Error('로그인이 필요합니다.');
+      }
+
+      var fetchOptions = options || {};
+      var headers = fetchOptions.headers || {};
+
+      headers.Authorization = 'Bearer ' + session.access_token;
+
+      if (fetchOptions.body) {
+        headers['Content-Type'] = 'application/json';
+      }
+
+      fetchOptions.headers = headers;
+      fetchOptions.cache = 'no-store';
+
+      var response = await fetch(url, fetchOptions);
+
+      var data = await response.json().catch(function () {
+        return {};
+      });
+
+      if (!response.ok) {
+        throw new Error(data.error || '요청을 처리하지 못했습니다.');
+      }
+
+      return data;
+    }
 
     function showLoggedOut(message) {
       loginForm.hidden = false;
       logoutButton.hidden = true;
+      createBox.hidden = true;
+
       authStatus.classList.remove('error');
-      authStatus.textContent = message || '로그인하지 않은 상태입니다.';
+      authStatus.textContent =
+        message || '로그인하지 않은 상태입니다.';
     }
 
     function showLoggedIn(user) {
       loginForm.hidden = true;
       logoutButton.hidden = false;
+      createBox.hidden = false;
+
       authStatus.classList.remove('error');
       authStatus.textContent = '로그인됨: ' + user.email;
     }
 
     async function refreshAuthState() {
-      var result = await supabase.auth.getSession();
-      var session = result.data.session;
+      var session = await getSession();
 
       if (session && session.user) {
         showLoggedIn(session.user);
@@ -231,11 +321,13 @@
 
       if (result.error) {
         authStatus.classList.add('error');
-        authStatus.textContent = '로그인 실패: ' + result.error.message;
+        authStatus.textContent =
+          '로그인 실패: ' + result.error.message;
         return;
       }
 
       passwordInput.value = '';
+
       showLoggedIn(result.data.user);
       await loadNotes();
     });
@@ -245,13 +337,160 @@
 
       if (result.error) {
         authStatus.classList.add('error');
-        authStatus.textContent = '로그아웃 실패: ' + result.error.message;
+        authStatus.textContent =
+          '로그아웃 실패: ' + result.error.message;
         return;
       }
 
       showLoggedOut('로그아웃되었습니다.');
       await loadNotes();
     });
+
+    createForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+
+      noteStatus.classList.remove('error');
+      noteStatus.textContent = '메모를 추가하는 중입니다.';
+
+      try {
+        await apiFetch('/api/notes', {
+          method: 'POST',
+          body: JSON.stringify({
+            title: noteTitleInput.value,
+            body: noteBodyInput.value
+          })
+        });
+
+        noteTitleInput.value = '';
+        noteBodyInput.value = '';
+
+        noteStatus.textContent = '메모가 추가되었습니다.';
+
+        await loadNotes();
+      } catch (error) {
+        noteStatus.classList.add('error');
+        noteStatus.textContent = error.message;
+      }
+    });
+
+    async function editNote(note) {
+      var newTitle = window.prompt('새 제목을 입력하세요.', note.title);
+
+      if (newTitle === null) {
+        return;
+      }
+
+      var newBody = window.prompt('새 내용을 입력하세요.', note.body);
+
+      if (newBody === null) {
+        return;
+      }
+
+      try {
+        await apiFetch('/api/notes/' + encodeURIComponent(note.id), {
+          method: 'PUT',
+          body: JSON.stringify({
+            title: newTitle,
+            body: newBody
+          })
+        });
+
+        await loadNotes();
+      } catch (error) {
+        window.alert(error.message);
+      }
+    }
+
+    async function deleteNote(note) {
+      var confirmed = window.confirm(
+        '"' + note.title + '" 메모를 삭제할까요?'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await apiFetch('/api/notes/' + encodeURIComponent(note.id), {
+          method: 'DELETE'
+        });
+
+        await loadNotes();
+      } catch (error) {
+        window.alert(error.message);
+      }
+    }
+
+    async function loadNotes() {
+      var session = await getSession();
+
+      if (!session) {
+        var loggedOutItem = document.createElement('li');
+        loggedOutItem.textContent =
+          '로그인하면 가상 메모를 볼 수 있습니다.';
+
+        list.replaceChildren(loggedOutItem);
+        return;
+      }
+
+      try {
+        var data = await apiFetch('/api/notes', {
+          method: 'GET'
+        });
+
+        if (!Array.isArray(data.notes)) {
+          throw new Error('가상 메모 형식이 올바르지 않습니다.');
+        }
+
+        var items = data.notes.map(function (note) {
+          var item = document.createElement('li');
+
+          var title = document.createElement('strong');
+          title.textContent = note.title;
+
+          var body = document.createElement('span');
+          body.textContent = note.body;
+
+          var actions = document.createElement('div');
+          actions.className = 'actions';
+
+          var editButton = document.createElement('button');
+          editButton.type = 'button';
+          editButton.className = 'editButton';
+          editButton.textContent = '수정';
+
+          editButton.addEventListener('click', function () {
+            editNote(note);
+          });
+
+          var deleteButton = document.createElement('button');
+          deleteButton.type = 'button';
+          deleteButton.className = 'deleteButton';
+          deleteButton.textContent = '삭제';
+
+          deleteButton.addEventListener('click', function () {
+            deleteNote(note);
+          });
+
+          actions.append(editButton, deleteButton);
+          item.append(title, body, actions);
+
+          return item;
+        });
+
+        if (items.length === 0) {
+          var emptyItem = document.createElement('li');
+          emptyItem.textContent = '등록된 메모가 없습니다.';
+          items.push(emptyItem);
+        }
+
+        list.replaceChildren(...items);
+      } catch (error) {
+        var errorItem = document.createElement('li');
+        errorItem.textContent = error.message;
+        list.replaceChildren(errorItem);
+      }
+    }
 
     supabase.auth.onAuthStateChange(function (event, session) {
       if (session && session.user) {
@@ -263,63 +502,6 @@
 
     await refreshAuthState();
     await loadNotes();
-
-    async function loadNotes() {
-      var sessionResult = await supabase.auth.getSession();
-      var session = sessionResult.data.session;
-
-      if (!session) {
-        var item = document.createElement('li');
-        item.textContent = '로그인하면 가상 메모를 볼 수 있습니다.';
-        list.replaceChildren(item);
-        return;
-      }
-
-      try {
-        var response = await fetch('/api/notes', {
-          method: 'GET',
-          cache: 'no-store',
-          headers: {
-            Authorization: 'Bearer ' + session.access_token
-          }
-        });
-
-        if (!response.ok) {
-          var errorData = await response.json().catch(function () {
-            return {};
-          });
-
-          throw new Error(
-            errorData.error || '가상 메모를 읽을 수 없습니다.'
-          );
-        }
-
-        var data = await response.json();
-
-        if (!Array.isArray(data.notes)) {
-          throw new Error('가상 메모 형식이 올바르지 않습니다.');
-        }
-
-        var items = data.notes.map(function (note) {
-          var item = document.createElement('li');
-          var title = document.createElement('strong');
-          var content = document.createElement('span');
-
-          title.textContent = note.title;
-          content.textContent = note.content;
-
-          item.append(title, content);
-
-          return item;
-        });
-
-        list.replaceChildren(...items);
-      } catch (error) {
-        var item = document.createElement('li');
-        item.textContent = error.message;
-        list.replaceChildren(item);
-      }
-    }
   </script>
 </body>
 
