@@ -2,8 +2,8 @@
 // Never return tokens, private keys, real names, or note bodies.
 
 export async function runAttackChecks(config) {
-  if (config.step !== 3) {
-    throw new Error('3단계 공격 점검은 step 3에서 실행해야 합니다.');
+  if (config.step !== 4) {
+    throw new Error('4단계 공격 점검은 step 4에서 실행해야 합니다.');
   }
 
   let app;
@@ -26,7 +26,7 @@ export async function runAttackChecks(config) {
     throw new Error('aleph.config.json의 실제 배포 주소를 확인해 주세요.');
   }
 
-  // 1. 공개 정적 data.json에 메모가 다시 노출되지 않았는지 확인
+  // 1. 공개 data.json에 메모가 다시 노출되지 않았는지 확인
   const staticResponse = await fetch(new URL('/data.json', app), {
     redirect: 'error',
     signal: AbortSignal.timeout(10000),
@@ -46,7 +46,7 @@ export async function runAttackChecks(config) {
     }
   }
 
-  // 2. 인증 없이 자료 API를 호출했을 때 차단되는지 확인
+  // 2. 로그인 없는 API 요청이 계속 차단되는지 확인
   const apiResponse = await fetch(new URL('/api/notes', app), {
     redirect: 'error',
     signal: AbortSignal.timeout(10000),
@@ -66,7 +66,7 @@ export async function runAttackChecks(config) {
     typeof apiError.error === 'string' &&
     apiError.error.length > 0;
 
-  // 3. 배포 식별 파일이 계속 공개되어 있는지 확인
+  // 3. 4단계 배포 식별 정보가 정상 공개되는지 확인
   const identityResponse = await fetch(new URL('/aleph.json', app), {
     redirect: 'error',
     signal: AbortSignal.timeout(10000),
@@ -79,7 +79,7 @@ export async function runAttackChecks(config) {
       const identity = await identityResponse.json();
 
       identityAvailable =
-        identity?.step === 3 &&
+        identity?.step === 4 &&
         typeof identity?.repoUrl === 'string' &&
         typeof identity?.publicAppUrl === 'string';
     } catch {
@@ -104,10 +104,10 @@ export async function runAttackChecks(config) {
     },
     {
       attackId: 'deployment_identity_available',
-      expected: '배포 주소의 /aleph.json을 정상적으로 확인',
+      expected: '배포 주소의 /aleph.json에서 4단계 식별 정보를 확인',
       observed: identityAvailable
-        ? '/aleph.json에서 3단계 배포 식별 정보를 확인함'
-        : `/aleph.json의 3단계 배포 식별 정보를 확인하지 못함 (HTTP ${identityResponse.status})`,
+        ? '/aleph.json에서 4단계 배포 식별 정보를 확인함'
+        : `/aleph.json의 4단계 배포 식별 정보를 확인하지 못함 (HTTP ${identityResponse.status})`,
     },
   ];
 }
