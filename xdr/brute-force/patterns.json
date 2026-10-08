@@ -1,0 +1,36 @@
+[
+  {
+    "id": "t1110.source_ip_burst",
+    "name": "짧은 시간 동안 같은 IP의 로그인 실패 반복",
+    "condition": {
+      "windowSeconds": 120,
+      "outcome": "failure",
+      "groupBy": ["sourceIp"],
+      "minimumAttempts": 10
+    },
+    "evidence": "MITRE ATT&CK T1110은 알 수 없는 비밀번호를 반복적·순차적으로 추측하는 행위를 설명하므로, 한 출발 IP의 반복 인증 실패는 이 행위와 일치하는 관찰 근거다."
+  },
+  {
+    "id": "t1110.source_ip_multiple_accounts",
+    "name": "같은 IP에서 여러 계정의 로그인 실패 반복",
+    "condition": {
+      "windowSeconds": 120,
+      "outcome": "failure",
+      "groupBy": ["sourceIp"],
+      "minimumAttempts": 10,
+      "minimumDistinctAccounts": 3
+    },
+    "evidence": "MITRE ATT&CK T1110은 한 계정 또는 계정 집합을 대상으로 한 체계적 비밀번호 추측을 설명하므로, 한 출발 IP가 여러 계정에 반복 실패한 기록은 계정 집합 대상 행위와 일치한다."
+  },
+  {
+    "id": "t1110.account_burst",
+    "name": "짧은 시간 동안 같은 계정의 로그인 실패 반복",
+    "condition": {
+      "windowSeconds": 120,
+      "outcome": "failure",
+      "groupBy": ["account"],
+      "minimumAttempts": 5
+    },
+    "evidence": "MITRE ATT&CK T1110은 자격 증명의 유효성을 확인하는 서비스에 반복적으로 비밀번호를 추측할 수 있다고 설명하므로, 한 계정의 연속 인증 실패는 그 서비스 상호작용과 일치한다."
+  }
+]

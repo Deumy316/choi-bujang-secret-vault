@@ -70,3 +70,8 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 따라서 공개 키나 일반 로그인 토큰으로 원본 REST API를 직접 호출해도 메모 자료에 접근할 수 없습니다.
 
 서버 함수는 기존 SUPABASE_SECRET_KEY를 사용하며, 4단계에서 만든 로그인 검증과 owner_id 소유권 검사는 그대로 유지합니다.
+
+## 보너스 과제 1 시험 자료
+
+`xdr/fixtures/brute-force.json`은 공식 제공 경보가 아니라 무차별 로그인 탐지 연습을 위해 자체 제작한 Wazuh 형식의 가상 시험 데이터입니다.
+모든 주소와 계정은 테스트용이며 실제 비밀번호, 토큰, 개인정보를 포함하지 않습니다.

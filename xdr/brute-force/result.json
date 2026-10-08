@@ -1,0 +1,71 @@
+{
+  "testData": {
+    "official": false,
+    "description": "공식 제공 경보가 아닌 자체 제작 Wazuh 형식 시험 데이터"
+  },
+  "total": 23,
+  "counts": {
+    "block": 11,
+    "alert": 0,
+    "record": 12
+  },
+  "falseBlocks": 0,
+  "evidence": [
+    {
+      "alertNumber": 10,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 11,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 12,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 13,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 14,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 15,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 16,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 17,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 18,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 19,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 20,
+      "action": "block",
+      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+    }
+  ],
+  "jevConnected": false
+}
