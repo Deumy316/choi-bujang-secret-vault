@@ -71,7 +71,8 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 서버 함수는 기존 SUPABASE_SECRET_KEY를 사용하며, 4단계에서 만든 로그인 검증과 owner_id 소유권 검사는 그대로 유지합니다.
 
-## 보너스 과제 1 시험 자료
+## 보너스 XDR
 
-`xdr/fixtures/brute-force.json`은 공식 제공 경보가 아니라 무차별 로그인 탐지 연습을 위해 자체 제작한 Wazuh 형식의 가상 시험 데이터입니다.
-모든 주소와 계정은 테스트용이며 실제 비밀번호, 토큰, 개인정보를 포함하지 않습니다.
+공식 시작 틀의 `xdr/fixtures/*.json`과 `scripts/xdr-run.mjs`를 사용합니다. 무차별 로그인은 28건을 `10/9/9`, 웹 주입은 26건을 `8/9/9`로 block/alert/record 분류하며 정상 이벤트 오차단은 없습니다.
+
+웹 주입 검증은 `npm run xdr:run -- web-injection`으로 다시 실행합니다. 임시 거부 후보는 테스트 프로세스 메모리에서 출발 IP별 10분 동안만 유지되며 운영 방화벽에는 적용하지 않습니다.

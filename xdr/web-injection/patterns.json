@@ -1,0 +1,59 @@
+[
+  {
+    "name": "SQL Injection",
+    "condition": {
+      "all": [
+        { "field": "rule.mitre", "contains": "T1190" },
+        { "field": "rule.level", "greaterThanOrEqual": 5 },
+        {
+          "any": [
+            { "field": "data.url", "urlDecodedMatches": "\\bunion(?:\\s|\\+)+(?:all(?:\\s|\\+)+)?select\\b" },
+            { "field": "data.url", "urlDecodedMatches": "(?:'|%27)\\s*or\\s+(?:'[^']*'\\s*=\\s*'[^']*'|\\d+\\s*=\\s*\\d+)" },
+            { "field": "data.url", "urlDecodedMatches": "\\b(?:sleep|benchmark)\\s*\\([^)]*\\)|\\binformation_schema\\b.*\\bselect\\b" },
+            { "field": "rule.description", "matches": "\\bSQL(?:\\s+Injection|i)\\b|SQL\\s*주입" }
+          ]
+        }
+      ],
+      "note": "SQL이라는 단어 하나나 일반 특수문자만으로는 일치하지 않는다."
+    },
+    "evidence": "T1190 경보에서 UNION SELECT, 참 조건 우회, 시간 지연·스키마 조회처럼 실행 가능한 SQL 구문 조합은 공개 웹 입력점 악용 신호다."
+  },
+  {
+    "name": "XSS",
+    "condition": {
+      "all": [
+        { "field": "rule.mitre", "contains": "T1190" },
+        { "field": "rule.level", "greaterThanOrEqual": 5 },
+        {
+          "any": [
+            { "field": "data.url", "urlDecodedMatches": "<\\s*script\\b[^>]*>" },
+            { "field": "data.url", "urlDecodedMatches": "<\\s*(?:img|svg)\\b[^>]*\\bon(?:error|load)\\s*=" },
+            { "field": "data.url", "urlDecodedMatches": "javascript\\s*:[^?#]*(?:alert|eval|document\\.)\\s*\\(" },
+            { "field": "rule.description", "matches": "\\b(?:XSS|Cross[- ]Site Scripting)\\b|스크립트\\s*(?:태그|실행|삽입)" }
+          ]
+        }
+      ],
+      "note": "꺾쇠괄호나 script라는 단어 하나만으로는 일치하지 않는다."
+    },
+    "evidence": "T1190 경보에서 script 태그, 실행 이벤트 속성, javascript 스킴과 실행 함수의 결합은 브라우저 코드 실행을 노린 입력 신호다."
+  },
+  {
+    "name": "Path Traversal",
+    "condition": {
+      "all": [
+        { "field": "rule.mitre", "contains": "T1190" },
+        { "field": "rule.level", "greaterThanOrEqual": 5 },
+        {
+          "any": [
+            { "field": "data.url", "urlDecodedMatches": "(?:\\.\\.[/\\\\]){2,}" },
+            { "field": "data.url", "urlDecodedMatches": "\\.\\.[/\\\\]+(?:etc[/\\\\]+passwd|windows[/\\\\]+win\\.ini)\\b" },
+            { "field": "data.url", "matches": "(?:(?:%2e){2}(?:%2f|%5c)){2,}" },
+            { "field": "rule.description", "matches": "\\b(?:Path|Directory) Traversal\\b|경로\\s*(?:순회|이탈)|상위\\s*경로" }
+          ]
+        }
+      ],
+      "note": "일반적인 점이나 슬래시 하나만으로는 일치하지 않는다."
+    },
+    "evidence": "T1190 경보에서 반복된 상위 경로 이동이나 시스템 파일 대상으로 이어지는 ../ 계열은 웹 루트 밖 파일 접근을 노린 신호다."
+  }
+]
