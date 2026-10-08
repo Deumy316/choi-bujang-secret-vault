@@ -1,11 +1,20 @@
-{"at":"2026-10-08T09:00:45.000+0900","action":"block","evidenceAlertNumber":10,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
-{"at":"2026-10-08T09:00:50.000+0900","action":"block","evidenceAlertNumber":11,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
-{"at":"2026-10-08T09:00:55.000+0900","action":"block","evidenceAlertNumber":12,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
-{"at":"2026-10-08T09:01:00.000+0900","action":"block","evidenceAlertNumber":13,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
-{"at":"2026-10-08T09:01:05.000+0900","action":"block","evidenceAlertNumber":14,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
-{"at":"2026-10-08T09:01:10.000+0900","action":"block","evidenceAlertNumber":15,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
-{"at":"2026-10-08T09:01:15.000+0900","action":"block","evidenceAlertNumber":16,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
-{"at":"2026-10-08T09:01:20.000+0900","action":"block","evidenceAlertNumber":17,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
-{"at":"2026-10-08T09:01:25.000+0900","action":"block","evidenceAlertNumber":18,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
-{"at":"2026-10-08T09:01:30.000+0900","action":"block","evidenceAlertNumber":19,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
-{"at":"2026-10-08T09:01:35.000+0900","action":"block","evidenceAlertNumber":20,"patternName":"같은 IP에서 여러 계정의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:00.000+0900","action":"block","evidenceAlertNumber":1,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:05.000+0900","action":"block","evidenceAlertNumber":2,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:10.000+0900","action":"block","evidenceAlertNumber":3,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:15.000+0900","action":"block","evidenceAlertNumber":4,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:20.000+0900","action":"block","evidenceAlertNumber":5,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:25.000+0900","action":"block","evidenceAlertNumber":6,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:30.000+0900","action":"block","evidenceAlertNumber":7,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:35.000+0900","action":"block","evidenceAlertNumber":8,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:40.000+0900","action":"block","evidenceAlertNumber":9,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:45.000+0900","action":"block","evidenceAlertNumber":10,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:50.000+0900","action":"block","evidenceAlertNumber":11,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:00:55.000+0900","action":"block","evidenceAlertNumber":12,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:01:00.000+0900","action":"block","evidenceAlertNumber":13,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:01:05.000+0900","action":"block","evidenceAlertNumber":14,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:01:10.000+0900","action":"block","evidenceAlertNumber":15,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:01:15.000+0900","action":"block","evidenceAlertNumber":16,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:01:20.000+0900","action":"block","evidenceAlertNumber":17,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:01:25.000+0900","action":"block","evidenceAlertNumber":18,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:01:30.000+0900","action":"block","evidenceAlertNumber":19,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}
+{"at":"2026-10-08T09:01:35.000+0900","action":"block","evidenceAlertNumber":20,"patternName":"짧은 시간 동안 같은 IP의 로그인 실패 반복"}

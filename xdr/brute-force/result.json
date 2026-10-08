@@ -5,66 +5,111 @@
   },
   "total": 23,
   "counts": {
-    "block": 11,
+    "block": 20,
     "alert": 0,
-    "record": 12
+    "record": 3
   },
   "falseBlocks": 0,
   "evidence": [
     {
+      "alertNumber": 1,
+      "action": "block",
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 2,
+      "action": "block",
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 3,
+      "action": "block",
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 4,
+      "action": "block",
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 5,
+      "action": "block",
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 6,
+      "action": "block",
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 7,
+      "action": "block",
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 8,
+      "action": "block",
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+    },
+    {
+      "alertNumber": 9,
+      "action": "block",
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+    },
+    {
       "alertNumber": 10,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     },
     {
       "alertNumber": 11,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     },
     {
       "alertNumber": 12,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     },
     {
       "alertNumber": 13,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     },
     {
       "alertNumber": 14,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     },
     {
       "alertNumber": 15,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     },
     {
       "alertNumber": 16,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     },
     {
       "alertNumber": 17,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     },
     {
       "alertNumber": 18,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     },
     {
       "alertNumber": 19,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     },
     {
       "alertNumber": 20,
       "action": "block",
-      "patternName": "같은 IP에서 여러 계정의 로그인 실패 반복"
+      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
     }
   ],
   "jevConnected": false

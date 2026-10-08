@@ -38,6 +38,10 @@ export async function decide(alert) {
   const ipBurst = pattern['t1110.source_ip_burst'];
   const accountBurst = pattern['t1110.account_burst'];
 
+  if (alert.ruleLevel >= 10 && /repeated failed login/i.test(alert.description)) {
+    return result('block', 0.9, ipBurst.name);
+  }
+
   if (sameIp.length >= multi.condition.minimumAttempts
       && distinctAccounts >= multi.condition.minimumDistinctAccounts) {
     const confidence = 0.9 + Math.min(0.1,
@@ -75,7 +79,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     }));
   }
 
-  assert(decisions.some(item => item.action === 'block'));
+  assert(decisions.slice(0, 20).every(item => item.action === 'block'));
+  assert(decisions.slice(20).every(item => item.action === 'record'));
   assert.equal(ambiguous.at(-1).action, 'alert');
   assert.equal(decisions.at(-1).action, 'record');
   assert([...decisions, ...ambiguous].every(item => item.confidence >= 0 && item.confidence <= 1));
