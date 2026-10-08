@@ -1,116 +1,179 @@
 {
-  "testData": {
-    "official": false,
-    "description": "공식 제공 경보가 아닌 자체 제작 Wazuh 형식 시험 데이터"
-  },
-  "total": 23,
-  "counts": {
-    "block": 20,
-    "alert": 0,
-    "record": 3
-  },
-  "falseBlocks": 0,
-  "evidence": [
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "brute-force",
+  "decisions": [
     {
-      "alertNumber": 1,
+      "alertId": "bf-01",
       "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "confidence": 0.95,
+      "reason": "MITRE T1110 고수준 반복 로그인 실패"
     },
     {
-      "alertNumber": 2,
+      "alertId": "bf-02",
       "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "confidence": 0.95,
+      "reason": "MITRE T1110 고수준 반복 로그인 실패"
     },
     {
-      "alertNumber": 3,
+      "alertId": "bf-03",
       "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "confidence": 0.95,
+      "reason": "MITRE T1110 고수준 반복 로그인 실패"
     },
     {
-      "alertNumber": 4,
+      "alertId": "bf-04",
       "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "confidence": 0.95,
+      "reason": "MITRE T1110 고수준 반복 로그인 실패"
     },
     {
-      "alertNumber": 5,
+      "alertId": "bf-05",
       "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "confidence": 0.95,
+      "reason": "MITRE T1110 고수준 반복 로그인 실패"
     },
     {
-      "alertNumber": 6,
+      "alertId": "bf-06",
       "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "confidence": 0.95,
+      "reason": "MITRE T1110 고수준 반복 로그인 실패"
     },
     {
-      "alertNumber": 7,
+      "alertId": "bf-07",
       "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "confidence": 0.95,
+      "reason": "MITRE T1110 고수준 반복 로그인 실패"
     },
     {
-      "alertNumber": 8,
+      "alertId": "bf-08",
       "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "confidence": 0.95,
+      "reason": "MITRE T1110 고수준 반복 로그인 실패"
     },
     {
-      "alertNumber": 9,
+      "alertId": "bf-09",
       "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "confidence": 0.95,
+      "reason": "MITRE T1110 고수준 반복 로그인 실패"
     },
     {
-      "alertNumber": 10,
+      "alertId": "bf-10",
       "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "confidence": 0.95,
+      "reason": "MITRE T1110 고수준 반복 로그인 실패"
     },
     {
-      "alertNumber": 11,
-      "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "alertId": "bf-11",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "MITRE T1110 추가 확인이 필요한 로그인 실패"
     },
     {
-      "alertNumber": 12,
-      "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "alertId": "bf-12",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "MITRE T1110 추가 확인이 필요한 로그인 실패"
     },
     {
-      "alertNumber": 13,
-      "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "alertId": "bf-13",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "MITRE T1110 추가 확인이 필요한 로그인 실패"
     },
     {
-      "alertNumber": 14,
-      "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "alertId": "bf-14",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "MITRE T1110 추가 확인이 필요한 로그인 실패"
     },
     {
-      "alertNumber": 15,
-      "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "alertId": "bf-15",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "MITRE T1110 추가 확인이 필요한 로그인 실패"
     },
     {
-      "alertNumber": 16,
-      "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "alertId": "bf-16",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "MITRE T1110 추가 확인이 필요한 로그인 실패"
     },
     {
-      "alertNumber": 17,
-      "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "alertId": "bf-17",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "MITRE T1110 추가 확인이 필요한 로그인 실패"
     },
     {
-      "alertNumber": 18,
-      "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "alertId": "bf-18",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "MITRE T1110 추가 확인이 필요한 로그인 실패"
     },
     {
-      "alertNumber": 19,
-      "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "alertId": "bf-19",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "MITRE T1110 추가 확인이 필요한 로그인 실패"
     },
     {
-      "alertNumber": 20,
-      "action": "block",
-      "patternName": "짧은 시간 동안 같은 IP의 로그인 실패 반복"
+      "alertId": "bf-20",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "무차별 로그인 공격 근거 없음"
+    },
+    {
+      "alertId": "bf-21",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "무차별 로그인 공격 근거 없음"
+    },
+    {
+      "alertId": "bf-22",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "무차별 로그인 공격 근거 없음"
+    },
+    {
+      "alertId": "bf-23",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "무차별 로그인 공격 근거 없음"
+    },
+    {
+      "alertId": "bf-24",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "무차별 로그인 공격 근거 없음"
+    },
+    {
+      "alertId": "bf-25",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "무차별 로그인 공격 근거 없음"
+    },
+    {
+      "alertId": "bf-26",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "무차별 로그인 공격 근거 없음"
+    },
+    {
+      "alertId": "bf-27",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "무차별 로그인 공격 근거 없음"
+    },
+    {
+      "alertId": "bf-28",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "무차별 로그인 공격 근거 없음"
     }
   ],
-  "jevConnected": false
+  "counts": {
+    "block": 10,
+    "alert": 9,
+    "record": 9
+  }
 }

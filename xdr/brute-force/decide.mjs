@@ -1,88 +1,33 @@
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import { readAlerts } from './read-alerts.mjs';
+const BLOCK_REASON = 'MITRE T1110 고수준 반복 로그인 실패';
+const ALERT_REASON = 'MITRE T1110 추가 확인이 필요한 로그인 실패';
+const RECORD_REASON = '무차별 로그인 공격 근거 없음';
 
-const patterns = JSON.parse(await readFile(new URL('./patterns.json', import.meta.url), 'utf8'));
-const pattern = Object.fromEntries(patterns.map(item => [item.id, item]));
-const windowMs = 120_000;
-// ponytail: 프로세스 내 시험 기록이며, 여러 인스턴스나 재시작을 다룰 때 공유 저장소로 교체한다.
-let failures = [];
-
-function outcome(alert) {
-  if (/login succeeded|successful login/i.test(alert.description)) return 'success';
-  if (/failed login|login failed|authentication failure/i.test(alert.description)) return 'failure';
-  return 'other';
+function decision(action, confidence, reason) {
+  return { action, confidence, reason };
 }
 
-function result(action, confidence, reason) {
-  return { action, confidence: Math.max(0, Math.min(1, confidence)), reason };
-}
+export function decide(alert) {
+  const level = Number(alert?.rule?.level);
+  const description = typeof alert?.rule?.description === 'string'
+    ? alert.rule.description
+    : '';
+  const mitre = Array.isArray(alert?.rule?.mitre) ? alert.rule.mitre : [];
+  const count = Number(alert?.data?.count ?? 0);
+  const accounts = typeof alert?.data?.accounts === 'string'
+    ? alert.data.accounts.split(',').filter(Boolean).length
+    : 0;
+  const hasSource = typeof alert?.data?.srcip === 'string'
+    && typeof alert?.data?.srcuser === 'string';
+  const isT1110 = mitre.includes('T1110');
 
-export async function decide(alert) {
-  const time = Date.parse(alert?.timestamp);
-  if (!Number.isFinite(time) || typeof alert?.sourceIp !== 'string'
-      || typeof alert?.account !== 'string' || typeof alert?.description !== 'string') {
-    throw new TypeError('판정할 경보의 시각, 출발 IP, 계정, 설명이 필요합니다.');
+  if (!Number.isFinite(level) || !description || !hasSource) {
+    return decision('record', 0, RECORD_REASON);
   }
-
-  if (outcome(alert) !== 'failure') return result('record', 0, '일치하는 공격 패턴 없음');
-
-  failures.push({ ...alert, time });
-  failures = failures.filter(item => item.time >= time - windowMs && item.time <= time);
-
-  const sameIp = failures.filter(item => item.sourceIp === alert.sourceIp);
-  const sameAccount = failures.filter(item => item.account === alert.account);
-  const distinctAccounts = new Set(sameIp.map(item => item.account)).size;
-  const multi = pattern['t1110.source_ip_multiple_accounts'];
-  const ipBurst = pattern['t1110.source_ip_burst'];
-  const accountBurst = pattern['t1110.account_burst'];
-
-  if (alert.ruleLevel >= 10 && /repeated failed login/i.test(alert.description)) {
-    return result('block', 0.9, ipBurst.name);
+  if (isT1110 && level >= 10 && (count >= 10 || accounts >= 3)) {
+    return decision('block', 0.95, BLOCK_REASON);
   }
-
-  if (sameIp.length >= multi.condition.minimumAttempts
-      && distinctAccounts >= multi.condition.minimumDistinctAccounts) {
-    const confidence = 0.9 + Math.min(0.1,
-      (sameIp.length - multi.condition.minimumAttempts) * 0.01
-      + (distinctAccounts - multi.condition.minimumDistinctAccounts) * 0.02);
-    return result('block', confidence, multi.name);
+  if (isT1110 && level >= 5 && (count >= 3 || accounts >= 3)) {
+    return decision('alert', 0.65, ALERT_REASON);
   }
-
-  if (sameIp.length >= ipBurst.condition.minimumAttempts) {
-    return result('alert', Math.min(0.84,
-      0.65 + (sameIp.length - ipBurst.condition.minimumAttempts) * 0.02), ipBurst.name);
-  }
-
-  if (sameAccount.length >= accountBurst.condition.minimumAttempts) {
-    return result('alert', Math.min(0.84,
-      0.55 + (sameAccount.length - accountBurst.condition.minimumAttempts) * 0.03), accountBurst.name);
-  }
-
-  return result('record', 0, '일치하는 공격 패턴 없음');
-}
-
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const { extracted } = await readAlerts();
-  const decisions = [];
-  for (const alert of extracted) decisions.push(await decide(alert));
-
-  const ambiguous = [];
-  for (let index = 0; index < 5; index += 1) {
-    ambiguous.push(await decide({
-      timestamp: `2026-10-08T11:00:${String(index * 10).padStart(2, '0')}.000+0900`,
-      sourceIp: `192.0.2.${100 + index}`,
-      account: 'ambiguous-test-user',
-      ruleLevel: 5,
-      description: 'Repeated failed login',
-    }));
-  }
-
-  assert(decisions.slice(0, 20).every(item => item.action === 'block'));
-  assert(decisions.slice(20).every(item => item.action === 'record'));
-  assert.equal(ambiguous.at(-1).action, 'alert');
-  assert.equal(decisions.at(-1).action, 'record');
-  assert([...decisions, ...ambiguous].every(item => item.confidence >= 0 && item.confidence <= 1));
-  console.log('PASS: 명확한 공격=block, 애매한 공격/Jev 미응답=alert, 정상=record, confidence=0~1');
+  return decision('record', 0.1, RECORD_REASON);
 }
