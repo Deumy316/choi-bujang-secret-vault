@@ -5,7 +5,7 @@ import { fixtureRequests } from '../scripts/fixture-7.mjs';
 import { decide } from './decider.mjs';
 
 export async function runAttackChecks(config) {
-  if (![5, 6, 7, 8].includes(config.step)) {
+  if (![5, 6, 7, 8, 9].includes(config.step)) {
     throw new Error('5~8단계 공격 점검은 해당 step에서 실행해야 합니다.');
   }
 
