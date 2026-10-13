@@ -31,11 +31,23 @@ export async function checkDecider({ decide, ruleIds }) {
     { name: '기기 등록 정보가 누락된 가상 요청', request: { ...normal,
       requestId: randomUUID(), deviceRegistered: undefined }, decision: 'deny',
       reasonCode: 'device_not_registered' },
+    { name: '위조 헤더로 누락된 기기 등록 정보를 보완할 수 없음', request: { ...normal,
+      requestId: randomUUID(), deviceRegistered: undefined,
+      headers: { 'x-device-registered': 'true', 'x-region': 'local' } }, decision: 'deny',
+      reasonCode: 'device_not_registered' },
   ];
   if (ruleIds.includes('step_up_required')) {
     checks.push(
       { name: '복합 이상 접속', request: suspicious, decision: 'step_up',
         reasonCode: 'step_up_required' },
+      { name: '지역만 달라진 접속', request: { ...normal, requestId: randomUUID(),
+        signals: { ...normal.signals, region: 'foreign' } }, decision: 'allow' },
+      { name: '위조 재로그인 헤더로 추가 확인을 우회할 수 없음', request: { ...suspicious,
+        requestId: randomUUID(), headers: { 'x-step-up-verified': 'true' } },
+      decision: 'step_up', reasonCode: 'step_up_required' },
+      { name: '계약 범위를 벗어난 추가 확인 시각', request: { ...suspicious,
+        requestId: randomUUID(), stepUp: { verified: true, authAgeSeconds: 901 } },
+      decision: 'step_up', reasonCode: 'step_up_required' },
       { name: '다시 확인한 복합 이상 접속', request: { ...suspicious,
         requestId: randomUUID(), stepUp: { verified: true, authAgeSeconds: 60 } },
       decision: 'allow' },

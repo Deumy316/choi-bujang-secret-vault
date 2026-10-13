@@ -5,8 +5,8 @@ import { fixtureRequests } from '../scripts/fixture-7.mjs';
 import { decide } from './decider.mjs';
 
 export async function runAttackChecks(config) {
-  if (config.step !== 5 && config.step !== 6) {
-    throw new Error('5·6단계 공격 점검은 해당 step에서 실행해야 합니다.');
+  if (![5, 6, 7].includes(config.step)) {
+    throw new Error('5~7단계 공격 점검은 해당 step에서 실행해야 합니다.');
   }
 
   let app;
@@ -114,7 +114,7 @@ export async function runAttackChecks(config) {
     },
   ];
 
-  if (config.step === 6) {
+  if (config.step === 6 || config.step === 7) {
     const { normal } = fixtureRequests();
     const request = { ...normal, deviceRegistered: false };
     const response = await decide(request);
@@ -134,6 +134,31 @@ export async function runAttackChecks(config) {
       observed: unregisteredDeviceBlocked
         ? '미등록 기기의 가상 요청을 device_not_registered로 거부함'
         : '미등록 기기의 가상 요청이 요구한 판정으로 거부되지 않음',
+    });
+  }
+
+  if (config.step === 7) {
+    const { normal, suspicious } = fixtureRequests();
+    const verified = {
+      ...suspicious,
+      stepUp: { verified: true, authAgeSeconds: 60 },
+    };
+    const [normalResponse, suspiciousResponse, verifiedResponse] = await Promise.all([
+      decide(normal),
+      decide(suspicious),
+      decide(verified),
+    ]);
+    const expectedDecisions = normalResponse?.decision === 'allow'
+      && suspiciousResponse?.decision === 'step_up'
+      && suspiciousResponse?.reasonCode === 'step_up_required'
+      && verifiedResponse?.decision === 'allow';
+
+    attempts.push({
+      attackId: 'unusual_access_step_up',
+      expected: '정상 가상 요청은 allow, 복합 이상은 step_up, 추가 확인한 새 요청은 allow',
+      observed: expectedDecisions
+        ? '정상 allow, 복합 이상 step_up, 추가 확인한 새 요청 allow를 확인함'
+        : `정상 ${normalResponse?.decision}, 복합 이상 ${suspiciousResponse?.decision}, 추가 확인 ${verifiedResponse?.decision}`,
     });
   }
 
