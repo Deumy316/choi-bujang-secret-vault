@@ -1,9 +1,12 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 
+import { fixtureRequests } from '../scripts/fixture-7.mjs';
+import { decide } from './decider.mjs';
+
 export async function runAttackChecks(config) {
-  if (config.step !== 5) {
-    throw new Error('5단계 공격 점검은 step 5에서 실행해야 합니다.');
+  if (config.step !== 5 && config.step !== 6) {
+    throw new Error('5·6단계 공격 점검은 해당 step에서 실행해야 합니다.');
   }
 
   let app;
@@ -79,7 +82,7 @@ export async function runAttackChecks(config) {
       const identity = await identityResponse.json();
 
       identityAvailable =
-        identity?.step === 5 &&
+        identity?.step === config.step &&
         typeof identity?.repoUrl === 'string' &&
         typeof identity?.publicAppUrl === 'string';
     } catch {
@@ -87,7 +90,7 @@ export async function runAttackChecks(config) {
     }
   }
 
-  return [
+  const attempts = [
     {
       attackId: 'public_static_note_read',
       expected: '공개 data.json에서 가상 메모를 읽지 못함',
@@ -104,10 +107,35 @@ export async function runAttackChecks(config) {
     },
     {
       attackId: 'deployment_identity_available',
-      expected: '배포 주소의 /aleph.json에서 5단계 식별 정보를 확인',
+      expected: `배포 주소의 /aleph.json에서 ${config.step}단계 식별 정보를 확인`,
       observed: identityAvailable
-        ? '/aleph.json에서 5단계 배포 식별 정보를 확인함'
-        : `/aleph.json의 5단계 배포 식별 정보를 확인하지 못함 (HTTP ${identityResponse.status})`,
+        ? `/aleph.json에서 ${config.step}단계 배포 식별 정보를 확인함`
+        : `/aleph.json의 ${config.step}단계 배포 식별 정보를 확인하지 못함 (HTTP ${identityResponse.status})`,
     },
   ];
+
+  if (config.step === 6) {
+    const { normal } = fixtureRequests();
+    const request = { ...normal, deviceRegistered: false };
+    const response = await decide(request);
+    const unregisteredDeviceBlocked =
+      response && typeof response === 'object' && !Array.isArray(response) &&
+      Object.keys(response).sort().join(',') === 'decision,reasonCode,requestId,ruleIds,schema' &&
+      response.schema === 'aleph.decision.v1' &&
+      response.requestId === request.requestId &&
+      response.decision === 'deny' &&
+      response.reasonCode === 'device_not_registered' &&
+      Array.isArray(response.ruleIds) &&
+      response.ruleIds.includes('device_registered');
+
+    attempts.push({
+      attackId: 'unregistered_device_read',
+      expected: '미등록 기기의 자료실 읽기 요청을 device_not_registered로 거부',
+      observed: unregisteredDeviceBlocked
+        ? '미등록 기기의 가상 요청을 device_not_registered로 거부함'
+        : '미등록 기기의 가상 요청이 요구한 판정으로 거부되지 않음',
+    });
+  }
+
+  return attempts;
 }
