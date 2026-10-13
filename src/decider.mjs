@@ -1,6 +1,17 @@
 // ALEPH SDP 엔진이 확인한 요청만 받는 학생 판정기 시작점입니다.
 // 요청 본문의 userId, role, 기기 키, 토큰을 별도로 믿거나 저장하지 마세요.
-export const RULE_IDS = Object.freeze(['device_registered', 'step_up_required']);
+export const RULE_IDS = Object.freeze(['device_registered', 'step_up_required', 'zone_access']);
+
+const NOTE_ID = /^(?:demo|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/iu;
+
+function checkZoneAccess({ service, method, path, route }) {
+  if (service !== 'notes') return false;
+  if (method === 'POST') return path === '/notes' && route === 'POST /notes';
+  if (!['GET', 'PUT', 'DELETE'].includes(method)) return false;
+
+  const match = typeof path === 'string' && path.match(/^\/notes\/([^/]+)$/u);
+  return Boolean(match && NOTE_ID.test(match[1]) && route === `${method} /notes/:id`);
+}
 
 export async function decide(request) {
   // 계약 필드만 사용하며, 출처가 검증되지 않은 신호나 클라이언트 헤더는 읽지 않습니다.
@@ -13,6 +24,16 @@ export async function decide(request) {
       decision: 'deny',
       reasonCode: 'device_not_registered',
       ruleIds: [RULE_IDS[0]],
+    };
+  }
+
+  if (!checkZoneAccess(request)) {
+    return {
+      schema: 'aleph.decision.v1',
+      requestId,
+      decision: 'deny',
+      reasonCode: 'zone_access_denied',
+      ruleIds: [RULE_IDS[2]],
     };
   }
 
