@@ -85,15 +85,23 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 `npm.cmd run decider:test`로 등록 기기·위조 헤더·복합 이상·추가 확인 결과를 확인하고, `npm.cmd run fixture:7`로 정상 사건의 `allow`와 복합 이상 사건의 `step_up`을 확인합니다. 두 명령은 로컬 가상 요청 연습이며 실제 심판 판정이나 운영 접속 증거가 아닙니다.
 
-## 8단계 중간 저장점: 자료마다 갈 수 있는 구역을 나눕니다
+## 8단계 저장점: 자료마다 갈 수 있는 구역을 나눕니다
 
 기존 UUID `id`는 그대로 유지하면서 일반 메모는 `vault:note:<UUID>`, 강사 공지는 `vault:instructor-notice:<UUID>` 형식의 `resourceId`로 구분합니다. API 주소와 기존 DB 레코드는 바꾸지 않았습니다.
 
 자료 API는 검증된 로그인 사용자의 ID와 DB `owner_id`를 비교하며, 목록도 DB 조회와 응답 직전 필터에서 요청자 소유 자료만 남깁니다. 일반 사용자의 강사 공지 수정은 403으로 기본 거부하지만 신뢰 가능한 강사 권한 원천이 없어 정상 강사 수정은 아직 지원하지 않습니다.
 
-판정기의 경로 기본 거부는 운영 등록부에 맞는 일반 접근 거부 `reasonCode`가 없어 구현하지 않았습니다. 기존 `device_registered`와 `step_up_required` 규칙은 그대로 유지합니다.
+판정기는 `zone_access` 규칙으로 검증된 `service`, `method`, `path`, `route`의 정확한 조합만 허용합니다. 전체 목록, 공지 쓰기, 기능 이름이 자료 ID 자리에 들어간 경로와 알 수 없는 경로는 `zone_access_denied`로 거부하며, 기존 `device_registered`와 `step_up_required` 규칙도 그대로 유지합니다.
 
 `node --test --test-isolation=none test/resource-id.test.mjs test/notes-ownership.test.mjs`로 자원 ID와 소유권 단위 검사를 다시 실행합니다. 실제 Supabase 계정·DB·RLS 통합과 배포 결과를 증명하는 시험은 아닙니다.
+
+## 9단계 저장점: 도플갱어를 찾고 권한을 거둡니다
+
+탐지기는 공식 가상 사건의 `at`, `method`, `identity.sub`만 읽고 동일 가명 사용자별 GET 요청을 시각순으로 집계합니다. 임의의 10분 구간에서 120건을 초과하면 `{ action: 'propose_revocation', reasonCode: 'burst_read', subject }`를 반환하며, 서로 다른 사용자의 조회나 10분 밖의 사건은 합산하지 않습니다.
+
+`propose_revocation`은 로컬 탐지 결과에 따른 회수 제안일 뿐 실제 권한 회수나 접속 차단이 아닙니다. 공식 사건 입력에는 네트워크 변화와 기기 식별자가 없으므로 복합 네트워크 탐지와 특정 기기 회수는 구현하지 않았습니다.
+
+`npm.cmd run detect:test`로 정상 30건, 경계 120건, 폭주 121·200건, 사용자 분리, 시간 구간 분리의 가상 사건 6개를 확인합니다. 이 로컬 시험은 운영 사건 전달이나 실제 회수 집행의 증거가 아닙니다.
 
 ## 보너스 XDR
 
