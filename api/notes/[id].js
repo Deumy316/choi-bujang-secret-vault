@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'node:module';
 import { createLoginVerifier } from '../../src/verify-login.mjs';
+import { createResourceId, RESOURCE_TYPES } from '../../src/resource-id.mjs';
+import {
+    isInstructorNoticeResourceId,
+    isOwner
+} from '../../src/note-access.mjs';
 
 var require = createRequire(import.meta.url);
 var config = require('../../aleph.config.json');
@@ -80,6 +85,15 @@ export default async function handler(req, res) {
         noteId = noteId[0];
     }
 
+    if (
+        req.method === 'PUT' &&
+        isInstructorNoticeResourceId(noteId)
+    ) {
+        return res.status(403).json({
+            error: 'Instructor permission required'
+        });
+    }
+
     if (typeof noteId !== 'string' || !UUID.test(noteId)) {
         return res.status(400).json({
             error: 'Invalid note id'
@@ -105,7 +119,7 @@ export default async function handler(req, res) {
         });
     }
 
-    if (existingNote.owner_id !== login.userId) {
+    if (!isOwner(existingNote, login.userId)) {
         return res.status(403).json({
             error: 'Forbidden'
         });
@@ -114,6 +128,10 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
         return res.status(200).json({
             id: existingNote.note_id,
+            resourceId: createResourceId(
+                RESOURCE_TYPES.NOTE,
+                existingNote.note_id
+            ),
             title: existingNote.title,
             body: existingNote.content
         });
@@ -155,7 +173,7 @@ export default async function handler(req, res) {
         if (
             !updateResult.data ||
             updateResult.data.length !== 1 ||
-            updateResult.data[0].owner_id !== login.userId
+            !isOwner(updateResult.data[0], login.userId)
         ) {
             return res.status(403).json({
                 error: 'Forbidden'
@@ -163,7 +181,8 @@ export default async function handler(req, res) {
         }
 
         return res.status(200).json({
-            id: noteId
+            id: noteId,
+            resourceId: createResourceId(RESOURCE_TYPES.NOTE, noteId)
         });
     }
 
@@ -190,7 +209,8 @@ export default async function handler(req, res) {
         }
 
         return res.status(200).json({
-            id: noteId
+            id: noteId,
+            resourceId: createResourceId(RESOURCE_TYPES.NOTE, noteId)
         });
     }
 

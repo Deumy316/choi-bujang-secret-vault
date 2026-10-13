@@ -85,6 +85,16 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 `npm.cmd run decider:test`로 등록 기기·위조 헤더·복합 이상·추가 확인 결과를 확인하고, `npm.cmd run fixture:7`로 정상 사건의 `allow`와 복합 이상 사건의 `step_up`을 확인합니다. 두 명령은 로컬 가상 요청 연습이며 실제 심판 판정이나 운영 접속 증거가 아닙니다.
 
+## 8단계 중간 저장점: 자료마다 갈 수 있는 구역을 나눕니다
+
+기존 UUID `id`는 그대로 유지하면서 일반 메모는 `vault:note:<UUID>`, 강사 공지는 `vault:instructor-notice:<UUID>` 형식의 `resourceId`로 구분합니다. API 주소와 기존 DB 레코드는 바꾸지 않았습니다.
+
+자료 API는 검증된 로그인 사용자의 ID와 DB `owner_id`를 비교하며, 목록도 DB 조회와 응답 직전 필터에서 요청자 소유 자료만 남깁니다. 일반 사용자의 강사 공지 수정은 403으로 기본 거부하지만 신뢰 가능한 강사 권한 원천이 없어 정상 강사 수정은 아직 지원하지 않습니다.
+
+판정기의 경로 기본 거부는 운영 등록부에 맞는 일반 접근 거부 `reasonCode`가 없어 구현하지 않았습니다. 기존 `device_registered`와 `step_up_required` 규칙은 그대로 유지합니다.
+
+`node --test --test-isolation=none test/resource-id.test.mjs test/notes-ownership.test.mjs`로 자원 ID와 소유권 단위 검사를 다시 실행합니다. 실제 Supabase 계정·DB·RLS 통합과 배포 결과를 증명하는 시험은 아닙니다.
+
 ## 보너스 XDR
 
 공식 시작 틀의 `xdr/fixtures/*.json`과 `scripts/xdr-run.mjs`를 사용합니다. 무차별 로그인은 28건을 `10/9/9`, 웹 주입은 26건을 `8/9/9`로 block/alert/record 분류하며 정상 이벤트 오차단은 없습니다.

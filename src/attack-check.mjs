@@ -5,8 +5,8 @@ import { fixtureRequests } from '../scripts/fixture-7.mjs';
 import { decide } from './decider.mjs';
 
 export async function runAttackChecks(config) {
-  if (![5, 6, 7].includes(config.step)) {
-    throw new Error('5~7단계 공격 점검은 해당 step에서 실행해야 합니다.');
+  if (![5, 6, 7, 8].includes(config.step)) {
+    throw new Error('5~8단계 공격 점검은 해당 step에서 실행해야 합니다.');
   }
 
   let app;
@@ -114,7 +114,7 @@ export async function runAttackChecks(config) {
     },
   ];
 
-  if (config.step === 6 || config.step === 7) {
+  if (config.step >= 6) {
     const { normal } = fixtureRequests();
     const request = { ...normal, deviceRegistered: false };
     const response = await decide(request);
@@ -137,7 +137,7 @@ export async function runAttackChecks(config) {
     });
   }
 
-  if (config.step === 7) {
+  if (config.step >= 7) {
     const { normal, suspicious } = fixtureRequests();
     const verified = {
       ...suspicious,

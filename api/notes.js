@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { createLoginVerifier } from '../src/verify-login.mjs';
+import { createResourceId, RESOURCE_TYPES } from '../src/resource-id.mjs';
+import { onlyOwnedNotes } from '../src/note-access.mjs';
 
 var require = createRequire(import.meta.url);
 var config = require('../aleph.config.json');
@@ -63,7 +65,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
         var result = await supabase
             .from('notes')
-            .select('note_id, title, content')
+            .select('note_id, title, content, owner_id')
             .eq('owner_id', login.userId)
             .order('id', { ascending: true });
 
@@ -75,13 +77,15 @@ export default async function handler(req, res) {
             });
         }
 
-        var notes = result.data.map(function (note) {
-            return {
-                id: note.note_id,
-                title: note.title,
-                body: note.content
-            };
-        });
+        var notes = onlyOwnedNotes(result.data, login.userId)
+            .map(function (note) {
+                return {
+                    id: note.note_id,
+                    resourceId: createResourceId(RESOURCE_TYPES.NOTE, note.note_id),
+                    title: note.title,
+                    body: note.content
+                };
+            });
 
         return res.status(200).json({
             notes: notes
@@ -125,7 +129,8 @@ export default async function handler(req, res) {
         }
 
         return res.status(201).json({
-            id: noteId
+            id: noteId,
+            resourceId: createResourceId(RESOURCE_TYPES.NOTE, noteId)
         });
     }
 
