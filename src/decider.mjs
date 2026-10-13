@@ -2,7 +2,7 @@
 // 요청 본문의 userId, role, 기기 키, 토큰을 별도로 믿거나 저장하지 마세요.
 export const RULE_IDS = Object.freeze(['device_registered', 'step_up_required', 'zone_access']);
 
-const NOTE_ID = /^(?:demo|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/iu;
+const NOTE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 function checkZoneAccess({ service, method, path, route }) {
   if (service !== 'notes') return false;
@@ -10,7 +10,8 @@ function checkZoneAccess({ service, method, path, route }) {
   if (!['GET', 'PUT', 'DELETE'].includes(method)) return false;
 
   const match = typeof path === 'string' && path.match(/^\/notes\/([^/]+)$/u);
-  return Boolean(match && NOTE_ID.test(match[1]) && route === `${method} /notes/:id`);
+  if (!match || route !== `${method} /notes/:id`) return false;
+  return (method === 'GET' && match[1] === 'demo') || NOTE_ID.test(match[1]);
 }
 
 export async function decide(request) {
