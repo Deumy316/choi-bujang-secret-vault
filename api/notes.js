@@ -4,6 +4,11 @@ import { randomUUID } from 'node:crypto';
 import { createLoginVerifier } from '../src/verify-login.mjs';
 import { createResourceId, RESOURCE_TYPES } from '../src/resource-id.mjs';
 import { onlyOwnedNotes } from '../src/note-access.mjs';
+import {
+    executeCreateNoteRpc,
+    NoteCreateError,
+    prepareCreateNoteRpcInput
+} from '../src/note-create.mjs';
 
 var require = createRequire(import.meta.url);
 var config = require('../aleph.config.json');
@@ -111,21 +116,20 @@ export default async function handler(req, res) {
                 ? body.id
                 : randomUUID();
 
-        var insertResult = await supabase
-            .from('notes')
-            .insert({
-                note_id: noteId,
-                owner_id: login.userId,
+        try {
+            var input = prepareCreateNoteRpcInput({
+                login: login,
+                noteId: noteId,
                 title: body.title.trim(),
                 content: body.body.trim()
             });
-
-        if (insertResult.error) {
-            console.error('Supabase insert error:', insertResult.error);
-
-            return res.status(500).json({
-                error: 'Failed to create note'
-            });
+            await executeCreateNoteRpc(supabase, input);
+        } catch (error) {
+            if (error instanceof NoteCreateError && error.status === 400) {
+                return res.status(400).json({ error: 'Invalid note input' });
+            }
+            console.error('Atomic note creation failed');
+            return res.status(500).json({ error: 'Failed to create note' });
         }
 
         return res.status(201).json({

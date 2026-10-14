@@ -3,10 +3,9 @@ import { createRequire } from 'node:module';
 import { createLoginVerifier } from '../../src/verify-login.mjs';
 import {
   executeRestoreRpc,
-  isRestoreAdmin,
   NoteRestoreError,
-  parseRestoreAdminSubjects,
   prepareRestoreRpcInput,
+  resolveRestoreRequestId,
 } from '../../src/note-restore.mjs';
 
 var require = createRequire(import.meta.url);
@@ -43,20 +42,18 @@ export default async function handler(req, res) {
   catch { return res.status(500).json({ error: 'Login verification error' }); }
   if (!login) return res.status(401).json({ error: 'Login required' });
 
-  let admins;
-  try { admins = parseRestoreAdminSubjects(process.env.NOTE_RESTORE_ADMIN_SUBJECTS); }
-  catch { return res.status(503).json({ error: 'Restore unavailable' }); }
-  if (!isRestoreAdmin(login, admins)) return res.status(403).json({ error: 'Restore permission required' });
-
   const body = req.body || {};
   if (typeof body.id !== 'string' || Object.keys(body).some(key => key !== 'id')) {
     return res.status(400).json({ error: 'Only the approved note id is accepted' });
   }
 
   try {
+    const requestId = resolveRestoreRequestId(req.headers['idempotency-key']);
+    res.setHeader('Idempotency-Key', requestId);
     const input = prepareRestoreRpcInput({
       login,
       requestedId: body.id,
+      requestId,
     });
     const restored = await executeRestoreRpc(getSupabase(), input);
     return res.status(200).json({ id: restored.id, backupVersion: restored.backupVersion, restored: true });

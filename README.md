@@ -111,7 +111,13 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 ## 10단계 제작 4: 복구 후 1~9단계 회귀시험 계획
 
-이 절은 기존 1~9단계 기록을 대체하지 않습니다. 새 복구 기준점은 현재 정책으로 만든 로컬 기준점이며 침해 이전 백업이 아닙니다. 시험 계정 B의 검증된 사전 메모 백업은 없고, 공식 심판 복원 요청 계약은 미확인 상태이며, `restore_single_verified_note` RPC는 SQL 초안만 있고 실제 DB에는 적용하지 않았습니다.
+이 절은 기존 1~9단계 기록을 대체하지 않습니다. 새 복구 기준점은 현재 정책으로 만든 로컬 기준점이며 침해 이전 백업이 아닙니다. Production에는 `20261014000000`~`20261014000003` SQL이 수동 적용되어 복원 RPC, 최소 권한 테이블, `note_id` UNIQUE 인덱스와 신규 메모 생성 RPC가 설치되어 있습니다. 기존 메모 4건은 자동 백업하지 않았으며 시험 계정 B의 검증된 사전 백업은 0건입니다. 공식 심판 복원 요청 계약은 여전히 미확인입니다.
+
+신규 `POST /api/notes`는 검증된 로그인 사용자의 ID만 소유자로 사용하고 `create_note_with_initial_backup` RPC에서 메모와 승인된 최초 사본을 한 트랜잭션으로 생성합니다. 이후 PUT/DELETE는 최초 사본을 변경하지 않습니다. 기존 메모를 정상 원본으로 간주하거나 소급 백업하지 않습니다.
+
+복원 요청의 `judge_run_id`는 JWT의 실행 ID를 유지하고 `request_id`는 호출별 UUID로 분리합니다. 같은 복원 요청을 재시도할 클라이언트는 UUID v4 `Idempotency-Key` 헤더를 동일하게 보내며, 생략하면 서버가 새 키를 발급해 응답 헤더에 돌려줍니다.
+
+복원 권한은 별도의 고정 subject 환경변수를 사용하지 않습니다. 공식 issuer가 서명한 `role=judge`, `aleph_identity=b` JWT의 UUID `sub`를 호출자 ID로 사용하고, RPC가 승인 백업과 현재 메모의 `owner_id` 일치를 다시 검사합니다.
 
 상태는 `통과`(이미 실행한 로컬 시험), `미실행`(아직 실행 증거 없음), `중단`(선행 복원 실패로 실행하지 않음)으로 기록합니다. 로컬 가상 요청 결과를 운영 검증이나 공식 심판 통과로 해석하지 않습니다.
 
@@ -122,9 +128,9 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 | R1 | 기준점 비교: `node scripts/compare-policy-backup.mjs` | 버전 `recovery-baseline-2026-10-14.1`, SHA-256 일치, 현재 정책과 변경 없음 | 기준점 무결성과 변경 없음 확인 | 통과 |
 | R2 | 시험 정책 미리보기: `node scripts/restore-test-policy.mjs` | 기본 동작은 dry-run이며 운영 `src/decider.mjs`를 변경하지 않음 | dry-run 및 운영 정책 불변 확인 | 통과 |
 | R3 | 정책 안전성: `node --test --test-isolation=none test/policy-backup.test.mjs test/policy-restore.test.mjs` | 백업 변조·검증 누락·경로 이탈은 거부되고 격리 파일만 원자적으로 복원됨 | 비교 3/3, 복원 3/3 통과 | 통과 |
-| R4 | 메모 복원 단위시험: `node --test --test-isolation=none test/note-restore.test.mjs` | 검증된 B의 `sub`만 RPC 호출자 ID로 전달하고 A·잘못된 대상·소유자 불일치·중복·DB 오류를 거부함 | API/RPC 경계 4/4 통과 | 통과 |
-| R4-DB | 빈 격리 PostgreSQL 16의 `byteback_restore_test`에서 `test/sql/note-restore.integration.sql` 실행 | 변조·삭제 복원, 다른 메모 보존, 감사 추가, 권한·무결성 실패 롤백 | 임시 로컬 DB에서 통과; Production에는 미적용 | 통과(격리) |
-| R5 | 격리 HTTP·DB에서 `POST /api/notes/restore` 호출 | DB 반영과 사후 내용 해시가 일치하고 다른 메모·감사 기록은 불변 | 검증된 B 백업 없음, 시험 DB 없음, RPC 미적용, 심판 계약 미확인 | 미실행 |
+| R4 | 메모 복원 단위시험: `node --test --test-isolation=none test/note-restore.test.mjs` | 검증된 B의 `sub`만 RPC 호출자 ID로 전달하고 A·잘못된 대상·소유자 불일치·DB 오류를 거부하며 동일 멱등 키 재시도를 재사용함 | API/RPC 경계 4/4 통과 | 통과 |
+| R4-DB | 빈 격리 PostgreSQL 16의 `byteback_restore_test`에서 `test/sql/note-restore.integration.sql` 실행 | 변조·삭제 복원, 다른 메모 보존, 감사 추가, 권한·무결성 실패 롤백 | 임시 로컬 DB에서 통과; Production SQL은 수동 적용됐으나 실제 복원은 미실행 | 통과(격리) |
+| R5 | 격리 HTTP·DB에서 `POST /api/notes/restore` 호출 | DB 반영과 사후 내용 해시가 일치하고 다른 메모·감사 기록은 불변 | Production RPC는 설치됐지만 검증된 B 백업 0건, 실제 HTTP 복원 및 심판 계약 미확인 | 미실행 |
 
 R1~R5 중 해당 실행 환경에 필요한 게이트가 실패하면 아래 회귀시험을 시작하지 않습니다. 특히 기준점·메모 백업의 해시 또는 검증 기록 불일치, 복원 대상 경로 이탈, 원자적 교체 실패, RPC 오류, 사후 SHA-256 불일치, 지정한 한 건 외의 변경은 즉시 중단 조건입니다. 실제 메모 복원을 검증해야 하는 실행에서는 R5가 통과하기 전 HTTP·DB 회귀시험을 실행하지 않습니다.
 
@@ -146,8 +152,8 @@ R1~R5 중 해당 실행 환경에 필요한 게이트가 실패하면 아래 회
 
 ### 10단계 로컬·격리 검증 기록 (2026-10-14)
 
-`npm.cmd run restore:test`로 ES256 judge JWT 검증, 정책 비교·시험 정책 복원, 메모 복원 입력·응답 검증 및 JavaScript UTF-8 SHA-256 고정 벡터를 함께 확인합니다. 현재 결과는 13/13 통과입니다. `npm.cmd run test:r5`, `npm.cmd run decider:test`, `npm.cmd run fixture:7`, `npm.cmd run detect:test`도 각각 2/2, 24/24, 정상 allow·복합 이상 step_up, 6/6 통과했습니다. 모두 로컬 fixture 결과이며 운영 심판 판정이 아닙니다.
+`npm.cmd run restore:test`로 ES256 judge JWT 검증, 정책 비교·시험 정책 복원, 메모 생성·복원 입력·응답 검증 및 JavaScript UTF-8 SHA-256 고정 벡터를 함께 확인합니다. 신규 생성 시험을 포함한 전체 명령은 이번 저장점 직전에 재실행하지 않았으며, 가장 최근 최소 인증·복원 시험은 6/6 통과했습니다. `npm.cmd run test:r5`, `npm.cmd run decider:test`, `npm.cmd run fixture:7`, `npm.cmd run detect:test`의 기존 결과는 각각 2/2, 24/24, 정상 allow·복합 이상 step_up, 6/6 통과였습니다. 모두 로컬 fixture 결과이며 운영 심판 판정이 아닙니다.
 
 PostgreSQL 통합시험은 운영 DB가 아닌 빈 임시 PostgreSQL 16 클러스터의 `byteback_restore_test` DB에서 `psql -X -v ON_ERROR_STOP=1 -f test/sql/note-restore.integration.sql`로 실행합니다. DB 이름이 다르면 시험 파일이 즉시 중단합니다. 실제 실행에서 마이그레이션 적용, JS·PostgreSQL 해시 일치, 변조 메모 갱신, 삭제 메모 재생성, 타 소유자·미승인 백업 거부, 다른 메모 보존, 복원별 감사 한 줄 추가, 감사 추가 실패 시 전체 롤백을 확인했습니다.
 
-Production Supabase에는 이 마이그레이션을 적용하지 않았고 검증된 B 사전 백업도 없습니다. 실제 judge JWT 기반 HTTP 복원, Production DB 반영, 공식 심판 계약과 평가는 미확인입니다. `xdr:run`은 기존 `xdr/alerts.log`를 보존하기 위해 이번 회귀시험에서 실행하지 않았습니다.
+Production Supabase에는 `20261014000000`~`20261014000003` SQL을 수동 적용했지만 백업·감사 행은 0건이고 검증된 B 사전 백업도 없습니다. 실제 judge JWT 기반 HTTP 복원, Production DB 반영, 공식 심판 계약과 평가는 미확인입니다. `xdr:run`은 기존 `xdr/alerts.log`를 보존하기 위해 이번 회귀시험에서 실행하지 않았습니다.

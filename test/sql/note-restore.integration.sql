@@ -47,6 +47,27 @@ grant select, insert, update, delete on public.notes to service_role;
 grant usage, select on sequence public.notes_id_seq to service_role;
 
 \ir ../../supabase/migrations/20261014000000_restore_single_verified_note.sql
+\ir ../../supabase/migrations/20261014000001_minimize_restore_table_privileges.sql
+
+insert into public.notes (note_id, owner_id, title, content) values (
+  '77777777-7777-4777-8777-777777777777',
+  '11111111-1111-4111-8111-111111111111',
+  'Existing note', 'Existing content'
+);
+
+\ir ../../supabase/migrations/20261014000002_add_notes_note_id_unique.sql
+\ir ../../supabase/migrations/20261014000003_create_note_with_initial_backup.sql
+
+do $no_backfill$
+begin
+  if exists (
+    select 1 from public.vault_note_backups
+    where note_id = '77777777-7777-4777-8777-777777777777'
+  ) then
+    raise exception 'existing_note_was_backfilled';
+  end if;
+end
+$no_backfill$;
 
 begin;
 
@@ -259,6 +280,171 @@ begin
   end if;
 end
 $verify_rollback$;
+
+revoke insert on public.vault_note_backups from service_role;
+set role service_role;
+do $create_backup_failure$
+begin
+  perform public.create_note_with_initial_backup(
+    '88888888-8888-4888-8888-888888888888',
+    '22222222-2222-4222-8222-222222222222',
+    'Must roll back', 'Backup insertion is unavailable'
+  );
+  raise exception 'create_without_backup_was_allowed';
+exception
+  when insufficient_privilege then null;
+end
+$create_backup_failure$;
+reset role;
+grant insert on public.vault_note_backups to service_role;
+
+do $verify_create_backup_failure_rollback$
+begin
+  if exists (
+    select 1 from public.notes
+    where note_id = '88888888-8888-4888-8888-888888888888'
+  ) or exists (
+    select 1 from public.vault_note_backups
+    where note_id = '88888888-8888-4888-8888-888888888888'
+  ) then
+    raise exception 'create_backup_failure_left_partial_data';
+  end if;
+end
+$verify_create_backup_failure_rollback$;
+
+set role service_role;
+do $create_restore_fixtures$
+declare
+  created_note record;
+begin
+  select * into created_note from public.create_note_with_initial_backup(
+    'ffffffff-ffff-4fff-8fff-ffffffffffff',
+    '22222222-2222-4222-8222-222222222222',
+    'Original updated title', 'Original updated content'
+  );
+  if created_note.created is not true
+      or created_note.backup_created is not true
+      or created_note.backup_version <> 'initial-create-v1' then
+    raise exception 'updated_fixture_create_failed';
+  end if;
+
+  select * into created_note from public.create_note_with_initial_backup(
+    '99999999-9999-4999-8999-999999999999',
+    '22222222-2222-4222-8222-222222222222',
+    'Original deleted title', 'Original deleted content'
+  );
+  if created_note.created is not true
+      or created_note.backup_created is not true then
+    raise exception 'deleted_fixture_create_failed';
+  end if;
+end
+$create_restore_fixtures$;
+
+do $reject_second_initial_backup$
+begin
+  perform public.create_note_with_initial_backup(
+    'ffffffff-ffff-4fff-8fff-ffffffffffff',
+    '22222222-2222-4222-8222-222222222222',
+    'Second title', 'Second content'
+  );
+  raise exception 'second_initial_backup_was_allowed';
+exception
+  when others then
+    if sqlerrm = 'second_initial_backup_was_allowed'
+        or sqlerrm <> 'note_create_target_conflict' then
+      raise;
+    end if;
+end
+$reject_second_initial_backup$;
+reset role;
+
+update public.notes
+set title = 'Tampered title', content = 'Tampered content'
+where note_id = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+
+delete from public.notes
+where note_id = '99999999-9999-4999-8999-999999999999';
+
+do $verify_immutable_create_backups$
+begin
+  if (select count(*) from public.vault_note_backups
+      where note_id in (
+        'ffffffff-ffff-4fff-8fff-ffffffffffff',
+        '99999999-9999-4999-8999-999999999999'
+      )) <> 2
+    or exists (
+      select 1 from public.vault_note_backups
+      where note_id = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+        and (title <> 'Original updated title'
+          or content <> 'Original updated content')
+    )
+    or exists (
+      select 1 from public.vault_note_backups
+      where note_id = '99999999-9999-4999-8999-999999999999'
+        and (title <> 'Original deleted title'
+          or content <> 'Original deleted content')
+    )
+    or exists (
+      select 1 from public.vault_note_backups
+      where note_id in (
+        'ffffffff-ffff-4fff-8fff-ffffffffffff',
+        '99999999-9999-4999-8999-999999999999'
+      ) and (source_ref <> 'atomic-note-create:v1'
+        or verification_status <> 'passed'
+        or not approved_for_restore
+        or title_sha256 <> encode(
+          extensions.digest(convert_to(title, 'UTF8'), 'sha256'), 'hex'
+        )
+        or content_sha256 <> encode(
+          extensions.digest(convert_to(content, 'UTF8'), 'sha256'), 'hex'
+        )
+        or record_sha256 <> encode(extensions.digest(convert_to(
+          lower(note_id::text) || E'\n' || lower(owner_id::text) || E'\n'
+          || title_sha256 || E'\n' || content_sha256,
+          'UTF8'
+        ), 'sha256'), 'hex'))
+    ) then
+    raise exception 'create_backup_changed_or_invalid';
+  end if;
+end
+$verify_immutable_create_backups$;
+
+set role service_role;
+select * from public.restore_single_verified_note(
+  'ffffffff-ffff-4fff-8fff-ffffffffffff',
+  '22222222-2222-4222-8222-222222222222',
+  '30000000-0000-4000-8000-000000000006',
+  '40000000-0000-4000-8000-000000000006'
+);
+select * from public.restore_single_verified_note(
+  '99999999-9999-4999-8999-999999999999',
+  '22222222-2222-4222-8222-222222222222',
+  '30000000-0000-4000-8000-000000000007',
+  '40000000-0000-4000-8000-000000000007'
+);
+reset role;
+
+do $verify_create_restore_cycles$
+begin
+  if not exists (
+    select 1 from public.notes
+    where note_id = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+      and title = 'Original updated title'
+      and content = 'Original updated content'
+  ) or not exists (
+    select 1 from public.notes
+    where note_id = '99999999-9999-4999-8999-999999999999'
+      and title = 'Original deleted title'
+      and content = 'Original deleted content'
+  ) or not exists (
+    select 1 from public.notes
+    where note_id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+      and owner_id = '11111111-1111-4111-8111-111111111111'
+  ) or (select count(*) from public.vault_audit_log) <> 4 then
+    raise exception 'create_restore_cycle_verification_failed';
+  end if;
+end
+$verify_create_restore_cycles$;
 
 rollback;
 \echo 'note restore SQL integration: PASS'
