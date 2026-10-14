@@ -122,7 +122,8 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 | R1 | 기준점 비교: `node scripts/compare-policy-backup.mjs` | 버전 `recovery-baseline-2026-10-14.1`, SHA-256 일치, 현재 정책과 변경 없음 | 기준점 무결성과 변경 없음 확인 | 통과 |
 | R2 | 시험 정책 미리보기: `node scripts/restore-test-policy.mjs` | 기본 동작은 dry-run이며 운영 `src/decider.mjs`를 변경하지 않음 | dry-run 및 운영 정책 불변 확인 | 통과 |
 | R3 | 정책 안전성: `node --test --test-isolation=none test/policy-backup.test.mjs test/policy-restore.test.mjs` | 백업 변조·검증 누락·경로 이탈은 거부되고 격리 파일만 원자적으로 복원됨 | 비교 3/3, 복원 3/3 통과 | 통과 |
-| R4 | 메모 복원 단위시험: `node --test --test-isolation=none test/note-restore.test.mjs` | 변조·삭제된 B 메모 한 건만 복원하고 위조·중복·권한 위반을 거부함 | 인메모리 4/4 통과 | 통과 |
+| R4 | 메모 복원 단위시험: `node --test --test-isolation=none test/note-restore.test.mjs` | 검증된 B의 `sub`만 RPC 호출자 ID로 전달하고 A·잘못된 대상·소유자 불일치·중복·DB 오류를 거부함 | API/RPC 경계 4/4 통과 | 통과 |
+| R4-DB | 빈 격리 PostgreSQL 16의 `byteback_restore_test`에서 `test/sql/note-restore.integration.sql` 실행 | 변조·삭제 복원, 다른 메모 보존, 감사 추가, 권한·무결성 실패 롤백 | 임시 로컬 DB에서 통과; Production에는 미적용 | 통과(격리) |
 | R5 | 격리 HTTP·DB에서 `POST /api/notes/restore` 호출 | DB 반영과 사후 내용 해시가 일치하고 다른 메모·감사 기록은 불변 | 검증된 B 백업 없음, 시험 DB 없음, RPC 미적용, 심판 계약 미확인 | 미실행 |
 
 R1~R5 중 해당 실행 환경에 필요한 게이트가 실패하면 아래 회귀시험을 시작하지 않습니다. 특히 기준점·메모 백업의 해시 또는 검증 기록 불일치, 복원 대상 경로 이탈, 원자적 교체 실패, RPC 오류, 사후 SHA-256 불일치, 지정한 한 건 외의 변경은 즉시 중단 조건입니다. 실제 메모 복원을 검증해야 하는 실행에서는 R5가 통과하기 전 HTTP·DB 회귀시험을 실행하지 않습니다.
@@ -142,3 +143,11 @@ R1~R5 중 해당 실행 환경에 필요한 게이트가 실패하면 아래 회
 | 9 | 9단계 과다 조회: `npm.cmd run detect:test`; 선택적 XDR `npm.cmd run xdr:run -- web-injection` | 30건·경계 120건과 사용자·시간 분리는 `observe` | 같은 사용자의 10분 내 121건 초과는 `propose_revocation / burst_read` | 복구 후 재실행 안 함; 운영 사건 전달·회수 집행도 미확인 | 미실행 |
 
 각 실행 뒤에는 실제 결과와 시각을 이 표에 기록하고, 예상과 다르면 `통과`로 바꾸지 않습니다. 전체 HTTP·DB 회귀시험은 검증된 B 백업, 격리 시험 DB, 적용된 RPC, 확인된 호출 계약이 준비된 뒤에만 진행합니다. 명령 실행 화면은 프로젝트 터미널이며, HTTP·DB 결과 확인 화면은 격리 시험 배포의 응답과 시험 DB 감사 화면입니다. 정상 결과는 본인·등록 기기·검증된 추가 확인·허용 구역 요청의 성공이고, 반드시 거부되어야 할 결과는 무인증, B→A, 미등록 기기, 추가 확인 미완료, 구역 이탈, 과다 조회입니다.
+
+### 10단계 로컬·격리 검증 기록 (2026-10-14)
+
+`npm.cmd run restore:test`로 ES256 judge JWT 검증, 정책 비교·시험 정책 복원, 메모 복원 입력·응답 검증 및 JavaScript UTF-8 SHA-256 고정 벡터를 함께 확인합니다. 현재 결과는 13/13 통과입니다. `npm.cmd run test:r5`, `npm.cmd run decider:test`, `npm.cmd run fixture:7`, `npm.cmd run detect:test`도 각각 2/2, 24/24, 정상 allow·복합 이상 step_up, 6/6 통과했습니다. 모두 로컬 fixture 결과이며 운영 심판 판정이 아닙니다.
+
+PostgreSQL 통합시험은 운영 DB가 아닌 빈 임시 PostgreSQL 16 클러스터의 `byteback_restore_test` DB에서 `psql -X -v ON_ERROR_STOP=1 -f test/sql/note-restore.integration.sql`로 실행합니다. DB 이름이 다르면 시험 파일이 즉시 중단합니다. 실제 실행에서 마이그레이션 적용, JS·PostgreSQL 해시 일치, 변조 메모 갱신, 삭제 메모 재생성, 타 소유자·미승인 백업 거부, 다른 메모 보존, 복원별 감사 한 줄 추가, 감사 추가 실패 시 전체 롤백을 확인했습니다.
+
+Production Supabase에는 이 마이그레이션을 적용하지 않았고 검증된 B 사전 백업도 없습니다. 실제 judge JWT 기반 HTTP 복원, Production DB 반영, 공식 심판 계약과 평가는 미확인입니다. `xdr:run`은 기존 `xdr/alerts.log`를 보존하기 위해 이번 회귀시험에서 실행하지 않았습니다.

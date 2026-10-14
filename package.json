@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build-public.mjs",
-    "test:r5": "node --test test/r5.test.mjs",
+    "test:r5": "node --test --test-isolation=none test/r5.test.mjs",
+    "restore:test": "node --test --test-isolation=none test/verify-login.test.mjs test/note-backup-hash.test.mjs test/note-restore.test.mjs test/policy-backup.test.mjs test/policy-restore.test.mjs",
     "bundle": "node scripts/bundle.mjs",
     "decider:test": "node scripts/decider-test.mjs",
     "detect:test": "node scripts/detect-test.mjs",
