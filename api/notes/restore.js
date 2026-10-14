@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'node:module';
 import { createLoginVerifier } from '../../src/verify-login.mjs';
 import {
-  executeRestoreRpc,
+  restoreOneVerifiedNote,
   NoteRestoreError,
   prepareRestoreRpcInput,
   resolveRestoreRequestId,
@@ -55,7 +55,8 @@ export default async function handler(req, res) {
       requestedId: body.id,
       requestId,
     });
-    const restored = await executeRestoreRpc(getSupabase(), input);
+    // 사본을 다시 읽어 지문 검증 → 통과 시에만 복원 → 복원한 한 건을 다시 읽어 ID·소유자·지문 대조
+    const restored = await restoreOneVerifiedNote(getSupabase(), input);
     // 10단계: 되살린 한 건의 ID·소유자·내용 해시를 응답에 함께 돌려줍니다(RPC가 사본과 대조를 마친 값, 본문은 넣지 않음).
     return res.status(200).json({
       id: restored.id, owner: 'self', ownerMatchesCaller: restored.ownerId === login.userId,
