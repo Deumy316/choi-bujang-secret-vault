@@ -58,6 +58,9 @@ function validateRpcResult(data, input) {
   }
   return Object.freeze({
     id: result.note_id,
+    ownerId: result.owner_id,
+    titleSha256: result.title_sha256,
+    contentSha256: result.content_sha256,
     backupVersion: result.backup_version,
   });
 }
