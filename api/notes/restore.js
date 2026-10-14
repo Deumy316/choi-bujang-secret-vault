@@ -56,7 +56,12 @@ export default async function handler(req, res) {
       requestId,
     });
     const restored = await executeRestoreRpc(getSupabase(), input);
-    return res.status(200).json({ id: restored.id, backupVersion: restored.backupVersion, restored: true });
+    // 10단계: 되살린 한 건의 ID·소유자·내용 해시를 응답에 함께 돌려줍니다(RPC가 사본과 대조를 마친 값, 본문은 넣지 않음).
+    return res.status(200).json({
+      id: restored.id, owner: 'self', ownerMatchesCaller: restored.ownerId === login.userId,
+      titleSha256: restored.titleSha256, contentSha256: restored.contentSha256,
+      backupVersion: restored.backupVersion, restored: true,
+    });
   } catch (error) {
     if (error instanceof NoteRestoreError) {
       return res.status(error.status).json({ error: error.code });
