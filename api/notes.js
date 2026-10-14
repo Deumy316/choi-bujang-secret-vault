@@ -120,8 +120,8 @@ export default async function handler(req, res) {
             var input = prepareCreateNoteRpcInput({
                 login: login,
                 noteId: noteId,
-                title: body.title.trim(),
-                content: body.body.trim()
+                title: body.title, // 10단계: 받은 바이트 그대로 저장(앞뒤 공백·줄바꿈을 지우면 사본·복구가 원본과 달라짐)
+                content: body.body
             });
             await executeCreateNoteRpc(supabase, input);
         } catch (error) {
