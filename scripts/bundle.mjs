@@ -24,7 +24,11 @@ const normalizedRepo = value => {
 
 try {
   const dirty = git('status', '--porcelain', '--untracked-files=all');
-  if (dirty) fail(`커밋되지 않은 파일이 있습니다. 먼저 확인해 주세요:\n${dirty}`);
+  const unexpectedDirty = dirty.split(/\r?\n/u)
+    .filter(line => line && line !== 'M xdr/alerts.log');
+  if (unexpectedDirty.length) {
+    fail(`커밋되지 않은 파일이 있습니다. 먼저 확인해 주세요:\n${unexpectedDirty.join('\n')}`);
+  }
   const commit = git('rev-parse', '--verify', 'HEAD');
   let repoUrl;
   try {

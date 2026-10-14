@@ -5,8 +5,8 @@ import { fixtureRequests } from '../scripts/fixture-7.mjs';
 import { decide } from './decider.mjs';
 
 export async function runAttackChecks(config) {
-  if (![5, 6, 7, 8, 9].includes(config.step)) {
-    throw new Error('5~8단계 공격 점검은 해당 step에서 실행해야 합니다.');
+  if (![5, 6, 7, 8, 9, 10].includes(config.step)) {
+    throw new Error('5~10단계 공격 점검은 해당 step에서 실행해야 합니다.');
   }
 
   let app;
@@ -159,6 +159,33 @@ export async function runAttackChecks(config) {
       observed: expectedDecisions
         ? '정상 allow, 복합 이상 step_up, 추가 확인한 새 요청 allow를 확인함'
         : `정상 ${normalResponse?.decision}, 복합 이상 ${suspiciousResponse?.decision}, 추가 확인 ${verifiedResponse?.decision}`,
+    });
+  }
+
+  if (config.step >= 10) {
+    if (config.restoreRoute !== '/api/notes/restore'
+        || !config.allowedRoutes?.includes('POST /api/notes/restore')) {
+      throw new Error('10단계 복원 API 경로 설정을 확인해 주세요.');
+    }
+
+    const restoreResponse = await fetch(new URL(config.restoreRoute, app), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: '00000000-0000-4000-8000-000000000000' }),
+      redirect: 'error',
+      signal: AbortSignal.timeout(10000),
+    });
+    let restoreError = null;
+    try { restoreError = await restoreResponse.json(); } catch {}
+    const anonymousRestoreBlocked = restoreResponse.status === 401
+      && typeof restoreError?.error === 'string' && restoreError.error.length > 0;
+
+    attempts.push({
+      attackId: 'anonymous_note_restore',
+      expected: '인증 없는 메모 복원 요청을 401 JSON 오류로 거부',
+      observed: anonymousRestoreBlocked
+        ? '인증 없는 메모 복원 요청이 JSON 오류로 차단됨 (HTTP 401)'
+        : `인증 없는 메모 복원 요청 차단 조건을 만족하지 못함 (HTTP ${restoreResponse.status})`,
     });
   }
 

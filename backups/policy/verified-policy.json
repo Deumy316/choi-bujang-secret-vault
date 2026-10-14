@@ -1,0 +1,51 @@
+{
+  "schema": "aleph.policy-backup.v1",
+  "version": "recovery-baseline-2026-10-14.1",
+  "createdAt": "2026-10-14T00:37:40.5106022+00:00",
+  "sourceCommit": "67e9c4b908f80d7387e37c3b04367184e25ed844",
+  "files": [
+    {
+      "path": "src/decider.mjs",
+      "backupPath": "backups/policy/decider.mjs",
+      "byteLength": 2444,
+      "sha256": "9807582de313b4fceb8b19c5bd9ad96d93ce5a22cfdbea94563a14d2aa67dcd8"
+    }
+  ],
+  "verification": {
+    "status": "passed",
+    "scope": "local_only",
+    "verifiedAt": "2026-10-14T00:37:40.5106022+00:00",
+    "checks": [
+      {
+        "name": "decider:test",
+        "passed": true,
+        "passedCount": 24,
+        "totalCount": 24
+      },
+      {
+        "name": "ownership-resource:test",
+        "passed": true,
+        "passedCount": 7,
+        "totalCount": 7
+      },
+      {
+        "name": "policy-backup:test",
+        "passed": true,
+        "passedCount": 3,
+        "totalCount": 3
+      }
+    ],
+    "notRun": [
+      {
+        "name": "database-http-integration",
+        "status": "not_run",
+        "reason": "격리된 시험 DB와 HTTP 환경이 준비되지 않아 실행하지 않음"
+      }
+    ],
+    "backupSha256": "83cf5eaebebfbe80d0c0f8aea4de039088bb10aa87ead6fd143a2e89345a1424"
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "sha256": "83cf5eaebebfbe80d0c0f8aea4de039088bb10aa87ead6fd143a2e89345a1424"
+  }
+}

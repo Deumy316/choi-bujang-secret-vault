@@ -108,3 +108,37 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 공식 시작 틀의 `xdr/fixtures/*.json`과 `scripts/xdr-run.mjs`를 사용합니다. 무차별 로그인은 28건을 `10/9/9`, 웹 주입은 26건을 `8/9/9`로 block/alert/record 분류하며 정상 이벤트 오차단은 없습니다.
 
 웹 주입 검증은 `npm run xdr:run -- web-injection`으로 다시 실행합니다. 임시 거부 후보는 테스트 프로세스 메모리에서 출발 IP별 10분 동안만 유지되며 운영 방화벽에는 적용하지 않습니다.
+
+## 10단계 제작 4: 복구 후 1~9단계 회귀시험 계획
+
+이 절은 기존 1~9단계 기록을 대체하지 않습니다. 새 복구 기준점은 현재 정책으로 만든 로컬 기준점이며 침해 이전 백업이 아닙니다. 시험 계정 B의 검증된 사전 메모 백업은 없고, 공식 심판 복원 요청 계약은 미확인 상태이며, `restore_single_verified_note` RPC는 SQL 초안만 있고 실제 DB에는 적용하지 않았습니다.
+
+상태는 `통과`(이미 실행한 로컬 시험), `미실행`(아직 실행 증거 없음), `중단`(선행 복원 실패로 실행하지 않음)으로 기록합니다. 로컬 가상 요청 결과를 운영 검증이나 공식 심판 통과로 해석하지 않습니다.
+
+### 복원 선행 게이트
+
+| 순서 | 확인 항목과 실행 명령 | 기대 결과 | 실제 결과 | 상태 |
+| --- | --- | --- | --- | --- |
+| R1 | 기준점 비교: `node scripts/compare-policy-backup.mjs` | 버전 `recovery-baseline-2026-10-14.1`, SHA-256 일치, 현재 정책과 변경 없음 | 기준점 무결성과 변경 없음 확인 | 통과 |
+| R2 | 시험 정책 미리보기: `node scripts/restore-test-policy.mjs` | 기본 동작은 dry-run이며 운영 `src/decider.mjs`를 변경하지 않음 | dry-run 및 운영 정책 불변 확인 | 통과 |
+| R3 | 정책 안전성: `node --test --test-isolation=none test/policy-backup.test.mjs test/policy-restore.test.mjs` | 백업 변조·검증 누락·경로 이탈은 거부되고 격리 파일만 원자적으로 복원됨 | 비교 3/3, 복원 3/3 통과 | 통과 |
+| R4 | 메모 복원 단위시험: `node --test --test-isolation=none test/note-restore.test.mjs` | 변조·삭제된 B 메모 한 건만 복원하고 위조·중복·권한 위반을 거부함 | 인메모리 4/4 통과 | 통과 |
+| R5 | 격리 HTTP·DB에서 `POST /api/notes/restore` 호출 | DB 반영과 사후 내용 해시가 일치하고 다른 메모·감사 기록은 불변 | 검증된 B 백업 없음, 시험 DB 없음, RPC 미적용, 심판 계약 미확인 | 미실행 |
+
+R1~R5 중 해당 실행 환경에 필요한 게이트가 실패하면 아래 회귀시험을 시작하지 않습니다. 특히 기준점·메모 백업의 해시 또는 검증 기록 불일치, 복원 대상 경로 이탈, 원자적 교체 실패, RPC 오류, 사후 SHA-256 불일치, 지정한 한 건 외의 변경은 즉시 중단 조건입니다. 실제 메모 복원을 검증해야 하는 실행에서는 R5가 통과하기 전 HTTP·DB 회귀시험을 실행하지 않습니다.
+
+### 1~9단계 회귀 순서
+
+| 순서 | 단계와 실행 명령 또는 요청 | 정상 요청 기대 결과 | 금지 요청 기대 결과 | 실제 결과 | 상태 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 1단계 정적 화면: 격리 배포에서 `GET /`, `GET /data.json` | 화면은 열리고 공개 가능한 가상 자료만 표시됨 | `/data.json`에서 비공개 메모가 노출되지 않음 | 복구 후 HTTP 확인 안 함 | 미실행 |
+| 2 | 2단계 서버 자료 경로: 인증된 `GET /api/notes` | 서버 API가 요청자 자료를 반환함 | 정적 파일이나 브라우저 코드가 DB 원문·서버 키를 노출하지 않음 | 격리 DB·HTTP 확인 안 함 | 미실행 |
+| 3 | 3단계 로그인: `POST /api/auth/login` 후 Bearer 토큰으로 메모 API 호출 | 유효한 A/B 시험 계정은 각자 인증됨 | 무토큰·변조·만료 토큰은 401로 거부됨 | 실제 계정·HTTP 확인 안 함 | 미실행 |
+| 4 | 4단계 소유권: `node --test --test-isolation=none test/notes-ownership.test.mjs test/resource-id.test.mjs` | A의 자기 자료 접근과 올바른 자원 ID는 허용됨 | B→A GET·PUT·DELETE와 A 자료 목록 노출은 거부됨 | 로컬 7/7 통과; DB·HTTP는 확인 안 함 | 통과(단위) |
+| 5 | 5단계 원본 DB 차단: 격리 환경에서 Vercel API와 Supabase REST를 각각 호출 | 인증된 서버 API CRUD만 동작함 | 공개 키·일반 사용자 토큰의 원본 REST CRUD는 거부됨 | 실제 RLS·DB·HTTP 확인 안 함 | 미실행 |
+| 6 | 6단계 등록 기기: `npm.cmd run decider:test` | `deviceRegistered: true`인 정상 단건 요청은 `allow` | false·누락·헤더 위조는 `deny / device_not_registered` | 로컬 판정기 전체 24/24 통과에 포함 | 통과(가상) |
+| 7 | 7단계 추가 확인: `npm.cmd run decider:test`; 보조 확인 `npm.cmd run fixture:7` | 정상 접속은 `allow`, 검증된 최신 추가 확인은 `allow` | 복합 이상·헤더 위조·901초 결과는 `step_up / step_up_required` | decider 사례는 통과; `fixture:7` 복구 후 재실행 안 함 | 일부 통과·일부 미실행 |
+| 8 | 8단계 자료 구역: 위 4단계 단위시험과 `npm.cmd run decider:test` | A 자기 메모의 허용된 단건 경로만 허용됨 | B→A 접근, 전체 목록, 공지 쓰기, route 불일치, 기능명·미지 경로는 `zone_access_denied` | 소유권 7/7 및 decider 24/24 로컬 통과; DB·HTTP는 확인 안 함 | 통과(단위·가상) |
+| 9 | 9단계 과다 조회: `npm.cmd run detect:test`; 선택적 XDR `npm.cmd run xdr:run -- web-injection` | 30건·경계 120건과 사용자·시간 분리는 `observe` | 같은 사용자의 10분 내 121건 초과는 `propose_revocation / burst_read` | 복구 후 재실행 안 함; 운영 사건 전달·회수 집행도 미확인 | 미실행 |
+
+각 실행 뒤에는 실제 결과와 시각을 이 표에 기록하고, 예상과 다르면 `통과`로 바꾸지 않습니다. 전체 HTTP·DB 회귀시험은 검증된 B 백업, 격리 시험 DB, 적용된 RPC, 확인된 호출 계약이 준비된 뒤에만 진행합니다. 명령 실행 화면은 프로젝트 터미널이며, HTTP·DB 결과 확인 화면은 격리 시험 배포의 응답과 시험 DB 감사 화면입니다. 정상 결과는 본인·등록 기기·검증된 추가 확인·허용 구역 요청의 성공이고, 반드시 거부되어야 할 결과는 무인증, B→A, 미등록 기기, 추가 확인 미완료, 구역 이탈, 과다 조회입니다.
