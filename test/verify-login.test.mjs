@@ -65,6 +65,8 @@ test('잘못된 role·identity·서명은 judge 로그인으로 인정하지 않
   assert.equal(await verifier(`Bearer ${await token({ aleph_role: 'student' })}`), null);
   assert.equal(await verifier(`Bearer ${await token({ aleph_identity: 'c' })}`), null);
   const valid = await token();
-  const forged = `${valid.slice(0, -1)}${valid.endsWith('a') ? 'b' : 'a'}`;
+  const parts = valid.split('.');
+  parts[2] = `${parts[2][0] === 'a' ? 'b' : 'a'}${parts[2].slice(1)}`;
+  const forged = parts.join('.');
   assert.equal(await verifier(`Bearer ${forged}`), null);
 });

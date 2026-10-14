@@ -9,8 +9,13 @@ const config = {
   sampleMarker: 'SAMPLE_NOTE_1',
   publicAppUrl: 'https://student-defense.vercel.app',
   originalApiUrl: 'https://student-project.supabase.co/rest/v1/notes',
-  allowedRoutes: ['POST /api/notes/restore'],
-  restoreRoute: '/api/notes/restore',
+  identityProvider: {
+    issuer: 'https://student-project.supabase.co/auth/v1',
+    jwksUrl: 'https://student-project.supabase.co/auth/v1/.well-known/jwks.json',
+    audience: 'authenticated',
+  },
+  allowedRoutes: ['POST /api/restore/:noteId'],
+  restoreRoute: '/api/restore/:noteId',
 };
 const env = {
   VERCEL_GIT_PROVIDER: 'github',
@@ -30,6 +35,7 @@ test('build identity uses current Vercel Git and deployment metadata', () => {
     judgeIssuer: config.judgeIssuer,
     sampleMarker: config.sampleMarker,
     allowedRoutes: config.allowedRoutes,
+    identityProvider: config.identityProvider,
     originalApiUrl: config.originalApiUrl,
     restoreRoute: config.restoreRoute,
   });
@@ -56,7 +62,7 @@ test('current attack checks use public endpoints without credentials', async () 
           publicAppUrl: config.publicAppUrl,
         });
       }
-      if (requestUrl.endsWith('/api/notes/restore')) {
+      if (requestUrl.endsWith('/api/restore/00000000-0000-4000-8000-000000000000')) {
         return Response.json({ error: 'Login required' }, { status: 401 });
       }
       return Response.json({ error: 'unexpected request' }, { status: 500 });
@@ -67,7 +73,7 @@ test('current attack checks use public endpoints without credentials', async () 
       'https://student-defense.vercel.app/data.json',
       'https://student-defense.vercel.app/api/notes',
       'https://student-defense.vercel.app/aleph.json',
-      'https://student-defense.vercel.app/api/notes/restore',
+      'https://student-defense.vercel.app/api/restore/00000000-0000-4000-8000-000000000000',
     ]);
     assert.equal(requests.every(request => request.init.redirect === 'error'), true);
     assert.equal(results.length, 6);

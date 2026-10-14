@@ -119,7 +119,9 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 복원 권한은 별도의 고정 subject 환경변수를 사용하지 않습니다. 공식 issuer가 서명한 `role=judge`, `aleph_identity=b` JWT의 UUID `sub`를 호출자 ID로 사용하고, RPC가 승인 백업과 현재 메모의 `owner_id` 일치를 다시 검사합니다.
 
-기본 복원 경로는 `POST /api/notes/restore`이며 본문 `{ "id": "UUID" }`를 받습니다. 호환 경로 `POST /api/notes/:id/restore`도 같은 처리기를 사용하되 URL의 ID만 대상으로 삼고, 본문 ID가 다르거나 다른 필드가 있으면 인증 확인 뒤 거부합니다. 공식 `restoreRoute` 계약은 확인되지 않아 설정값은 기존 `/api/notes/restore`를 유지합니다. 두 경로 모두 승인된 B 백업이 필요하며 현재 Production 승인 백업은 0건이므로 실제 복원 성공은 미검증입니다.
+대표 복원 경로는 `POST /api/restore/:noteId`이며 기존 `POST /api/notes/restore`와 `POST /api/notes/:id/restore`도 유지합니다. 경로형 API는 URL ID만 기존 처리기에 전달하고, 본문·쿼리의 다른 ID나 잘못된 UUID는 인증 확인 뒤 거부합니다. 배포 메타데이터에는 로그인 검증과 같은 `identityProvider`가 포함됩니다. 세 경로 모두 승인된 B 백업이 필요하며 현재 Production 승인 백업은 0건이므로 실제 복원 성공은 미검증입니다.
+
+검증된 정책 사본은 `.gitattributes`로 LF를 고정하며 사본 원문·SHA-256·검증 메타데이터는 변경하지 않았습니다. 새 경로의 실제 로컬 시험 결과는 아래 10단계 검증 기록에만 실행 후 기록합니다.
 
 상태는 `통과`(이미 실행한 로컬 시험), `미실행`(아직 실행 증거 없음), `중단`(선행 복원 실패로 실행하지 않음)으로 기록합니다. 로컬 가상 요청 결과를 운영 검증이나 공식 심판 통과로 해석하지 않습니다.
 
@@ -154,7 +156,7 @@ R1~R5 중 해당 실행 환경에 필요한 게이트가 실패하면 아래 회
 
 ### 10단계 로컬·격리 검증 기록 (2026-10-14)
 
-`npm.cmd run restore:test`로 ES256 judge JWT 검증, 정책 비교·시험 정책 복원, 메모 생성·복원 입력·응답 검증 및 JavaScript UTF-8 SHA-256 고정 벡터를 함께 확인합니다. 신규 생성 시험을 포함한 전체 명령은 이번 저장점 직전에 재실행하지 않았으며, 가장 최근 최소 인증·복원 시험은 6/6 통과했습니다. `npm.cmd run test:r5`, `npm.cmd run decider:test`, `npm.cmd run fixture:7`, `npm.cmd run detect:test`의 기존 결과는 각각 2/2, 24/24, 정상 allow·복합 이상 step_up, 6/6 통과였습니다. 모두 로컬 fixture 결과이며 운영 심판 판정이 아닙니다.
+`npm.cmd run restore:test`로 ES256 judge JWT 검증, 정책 비교·시험 정책 복원, 메모 생성·복원 입력·응답 검증 및 JavaScript UTF-8 SHA-256 고정 벡터를 함께 확인합니다. 전체 명령은 이번 변경에서 재실행하지 않았고, 새 경로·기존 경로·인증·복원 입력·배포 신원의 관련 최소 시험은 2026-10-14에 14/14 통과했습니다. `npm.cmd run decider:test`, `npm.cmd run fixture:7`, `npm.cmd run detect:test`의 기존 결과는 각각 24/24, 정상 allow·복합 이상 step_up, 6/6 통과였습니다. 모두 로컬 fixture 결과이며 운영 심판 판정이 아닙니다.
 
 PostgreSQL 통합시험은 운영 DB가 아닌 빈 임시 PostgreSQL 16 클러스터의 `byteback_restore_test` DB에서 `psql -X -v ON_ERROR_STOP=1 -f test/sql/note-restore.integration.sql`로 실행합니다. DB 이름이 다르면 시험 파일이 즉시 중단합니다. 실제 실행에서 마이그레이션 적용, JS·PostgreSQL 해시 일치, 변조 메모 갱신, 삭제 메모 재생성, 타 소유자·미승인 백업 거부, 다른 메모 보존, 복원별 감사 한 줄 추가, 감사 추가 실패 시 전체 롤백을 확인했습니다.
 

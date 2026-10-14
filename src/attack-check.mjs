@@ -163,12 +163,16 @@ export async function runAttackChecks(config) {
   }
 
   if (config.step >= 10) {
-    if (config.restoreRoute !== '/api/notes/restore'
-        || !config.allowedRoutes?.includes('POST /api/notes/restore')) {
+    if (!['/api/notes/restore', '/api/restore/:noteId'].includes(config.restoreRoute)
+        || !config.allowedRoutes?.includes(`POST ${config.restoreRoute}`)) {
       throw new Error('10단계 복원 API 경로 설정을 확인해 주세요.');
     }
 
-    const restoreResponse = await fetch(new URL(config.restoreRoute, app), {
+    const restorePath = config.restoreRoute.replace(
+      ':noteId',
+      '00000000-0000-4000-8000-000000000000'
+    );
+    const restoreResponse = await fetch(new URL(restorePath, app), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ id: '00000000-0000-4000-8000-000000000000' }),
