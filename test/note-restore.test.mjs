@@ -87,6 +87,9 @@ test('RPC 반환을 검증하고 같은 요청 재시도는 성공으로 재사�
   };
   assert.deepEqual(await executeRestoreRpc(supabase, input), {
     id: TARGET,
+    ownerId: '22222222-2222-4222-8222-222222222222',
+    titleSha256: '1'.repeat(64),
+    contentSha256: '2'.repeat(64),
     backupVersion: 'verified-backup-1',
   });
   await assert.rejects(executeRestoreRpc({}, input), /restore_transaction_unavailable/);
@@ -110,7 +113,7 @@ test('RPC 반환을 검증하고 같은 요청 재시도는 성공으로 재사�
         audit_id: AUDIT,
       }],
     }),
-  }, input), { id: TARGET, backupVersion: 'verified-backup-1' });
+  }, input), { id: TARGET, ownerId: B, titleSha256: '1'.repeat(64), contentSha256: '2'.repeat(64), backupVersion: 'verified-backup-1' });
   await assert.rejects(executeRestoreRpc({
     rpc: async () => ({
       error: null,
