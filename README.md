@@ -109,6 +109,17 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 웹 주입 검증은 `npm run xdr:run -- web-injection`으로 다시 실행합니다. 임시 거부 후보는 테스트 프로세스 메모리에서 출발 IP별 10분 동안만 유지되며 운영 방화벽에는 적용하지 않습니다.
 
+## 10단계: 복구 처리기의 사본 검증과 복원 뒤 재대조
+
+`POST /api/restore/:noteId`(`restoreRoute`)는 `src/note-restore.mjs`의 `restoreOneVerifiedNote` 순서로만 복원합니다.
+
+1. **사본 다시 읽기·검증(`readVerifiedBackup`)**: 호출자 소유의 승인된 사본(`vault_note_backups`)을 읽고 제목·본문·레코드 SHA-256을 서버에서 다시 계산해 저장된 지문과 대조합니다. 사본이 없으면 404(`backup_not_found`), 하나라도 다르면 409(`backup_unverified`)로 멈추고 **복원 RPC를 부르지 않습니다.**
+2. **원자적 복원(`restore_single_verified_note`)**: 검증을 통과한 경우에만 DB 함수가 같은 검증을 한 번 더 하고 한 건만 되돌리거나 다시 만들며 감사 기록을 남깁니다.
+3. **복원 뒤 재대조(`verifyRestoredNote`)**: 복원한 메모 한 건을 다시 읽어 ID·소유자·제목/본문/레코드 지문이 1번의 사본과 같은지 확인합니다. 다르면 409(`restore_mismatch`). 응답에는 ID·소유자·지문만 넣고 본문은 넣지 않습니다.
+4. 메모는 받은 바이트 그대로 저장합니다(앞뒤 공백·줄바꿈을 지우지 않음). 그래서 사본과 복원 결과가 원본 바이트와 같습니다.
+
+확인: `npm run restore:test`의 `test/restore-verify.test.mjs`(검증된 사본만 복원, 사본 변조·소유자 불일치 시 RPC 미호출, 사본 없음 404, 복원 뒤 바이트·소유자 불일치 시 `restore_mismatch`). 가짜 DB 시험이며 심판 판정이 아닙니다.
+
 ## 10단계 제작 4: 복구 후 1~9단계 회귀시험 계획
 
 이 절은 기존 1~9단계 기록을 대체하지 않습니다. 새 복구 기준점은 현재 정책으로 만든 로컬 기준점이며 침해 이전 백업이 아닙니다. Production에는 `20261014000000`~`20261014000003` SQL이 수동 적용되어 복원 RPC, 최소 권한 테이블, `note_id` UNIQUE 인덱스와 신규 메모 생성 RPC가 설치되어 있습니다. 기존 메모 4건은 자동 백업하지 않았으며 시험 계정 B의 검증된 사전 백업은 0건입니다. 공식 심판 복원 요청 계약은 여전히 미확인입니다.
