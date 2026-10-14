@@ -31,9 +31,11 @@ test('build identity uses current Vercel Git and deployment metadata', () => {
     sampleMarker: config.sampleMarker,
     allowedRoutes: config.allowedRoutes,
     originalApiUrl: config.originalApiUrl,
+    restoreRoute: config.restoreRoute,
   });
   assert.throws(() => deploymentIdentity({ ...env, VERCEL_GIT_PROVIDER: undefined }, config));
   assert.throws(() => deploymentIdentity({ ...env, VERCEL_GIT_COMMIT_SHA: 'short' }, config));
+  assert.throws(() => deploymentIdentity(env, { ...config, restoreRoute: '/wrong' }));
 });
 
 test('current attack checks use public endpoints without credentials', async () => {

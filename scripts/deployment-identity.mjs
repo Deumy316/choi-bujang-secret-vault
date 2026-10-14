@@ -26,6 +26,7 @@ export function deploymentIdentity(env, config) {
     || !/^[A-Z0-9_]{1,80}$/u.test(config.sampleMarker)
     || typeof config.originalApiUrl !== 'string'
     || !/^https:\/\//u.test(config.originalApiUrl)
+    || (config.step >= 10 && config.restoreRoute !== '/api/notes/restore')
   ) {
     throw new Error(
       '배포 식별 정보를 확인할 수 없습니다. Vercel 시스템 환경변수와 1단계 시작 틀을 확인하세요.'
@@ -42,5 +43,6 @@ export function deploymentIdentity(env, config) {
     sampleMarker: config.sampleMarker,
     allowedRoutes: config.allowedRoutes,
     originalApiUrl: config.originalApiUrl,
+    ...(config.step >= 10 ? { restoreRoute: config.restoreRoute } : {}),
   };
 }
