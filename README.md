@@ -119,6 +119,8 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 복원 권한은 별도의 고정 subject 환경변수를 사용하지 않습니다. 공식 issuer가 서명한 `role=judge`, `aleph_identity=b` JWT의 UUID `sub`를 호출자 ID로 사용하고, RPC가 승인 백업과 현재 메모의 `owner_id` 일치를 다시 검사합니다.
 
+기본 복원 경로는 `POST /api/notes/restore`이며 본문 `{ "id": "UUID" }`를 받습니다. 호환 경로 `POST /api/notes/:id/restore`도 같은 처리기를 사용하되 URL의 ID만 대상으로 삼고, 본문 ID가 다르거나 다른 필드가 있으면 인증 확인 뒤 거부합니다. 공식 `restoreRoute` 계약은 확인되지 않아 설정값은 기존 `/api/notes/restore`를 유지합니다. 두 경로 모두 승인된 B 백업이 필요하며 현재 Production 승인 백업은 0건이므로 실제 복원 성공은 미검증입니다.
+
 상태는 `통과`(이미 실행한 로컬 시험), `미실행`(아직 실행 증거 없음), `중단`(선행 복원 실패로 실행하지 않음)으로 기록합니다. 로컬 가상 요청 결과를 운영 검증이나 공식 심판 통과로 해석하지 않습니다.
 
 ### 복원 선행 게이트
