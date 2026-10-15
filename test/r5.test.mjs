@@ -17,6 +17,18 @@ const config = {
   allowedRoutes: ['POST /api/restore/:noteId'],
   restoreRoute: '/api/restore/:noteId',
 };
+const stage12Config = {
+  ...config,
+  step: 12,
+  allowedRoutes: [
+    ...config.allowedRoutes,
+    'GET /api/device/status',
+    'POST /api/device/request',
+    'POST /api/device/unregister',
+    'POST /api/device/admin',
+    'GET /api/operations/status',
+  ],
+};
 const env = {
   VERCEL_GIT_PROVIDER: 'github',
   VERCEL_GIT_REPO_OWNER: 'Student-A',
@@ -59,7 +71,7 @@ test('current attack checks use public endpoints without credentials', async () 
       }
       if (requestUrl.endsWith('/aleph.json')) {
         return Response.json({
-          step: 10,
+          step: stage12Config.step,
           repoUrl: 'https://github.com/student-a/aleph-defense',
           publicAppUrl: identityPublicAppUrl,
         });
@@ -70,7 +82,7 @@ test('current attack checks use public endpoints without credentials', async () 
       return Response.json({ error: 'unexpected request' }, { status: 500 });
     };
 
-    const results = await runAttackChecks(config);
+    const results = await runAttackChecks(stage12Config);
     assert.deepEqual(requests.map(request => request.url), [
       'https://student-defense.vercel.app/data.json',
       'https://student-defense.vercel.app/api/notes',
@@ -81,11 +93,11 @@ test('current attack checks use public endpoints without credentials', async () 
     assert.equal(results.length, 6);
     assert.match(results[0].observed, /확인되지 않음/u);
     assert.match(results[1].observed, /차단됨/u);
-    assert.match(results[2].observed, /10단계/u);
+    assert.match(results[2].observed, /12단계/u);
     assert.match(results[5].observed, /HTTP 401/u);
 
     identityPublicAppUrl = 'https://different-deployment.vercel.app';
-    const mismatchedIdentityResults = await runAttackChecks(config);
+    const mismatchedIdentityResults = await runAttackChecks(stage12Config);
     assert.match(mismatchedIdentityResults[2].observed, /확인하지 못함/u);
   } finally {
     globalThis.fetch = originalFetch;

@@ -14,6 +14,11 @@ test('PWA 설정은 공개 셸만 캐시하고 기기 상태를 임의 승인하
   assert.match(html, /authenticatedFetch\('\/api\/device\/admin'/u);
   assert.match(html, /showDeviceApproval\(result\.status, result\.registrationId\)/u);
   assert.match(html, /현재 요청 ID/u);
+  assert.match(html, /BYTE BACK · 탈환 작전실/u);
+  assert.match(html, /authenticatedFetch\('\/api\/operations\/status'/u);
+  assert.match(html, /1~11단계 통합 검증표/u);
+  assert.match(html, /verificationStageFilter/u);
+  assert.doesNotMatch(html, /BYTE BACK · 5단계/u);
   assert.doesNotMatch(html, /(?:localStorage|sessionStorage)\.setItem/u);
   assert.doesNotMatch(worker, /\/api\//u);
   assert.doesNotMatch(worker, /data\.json/u);

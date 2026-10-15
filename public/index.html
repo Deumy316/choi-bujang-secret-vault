@@ -119,6 +119,128 @@
       color: #10202b;
     }
 
+    .operations-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .operations-header h2 {
+      margin: 0;
+    }
+
+    .operations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .operation-card {
+      padding: 16px;
+      border: 1px solid #51667c;
+      border-radius: 12px;
+      background: #111f31;
+    }
+
+    .operation-card h3 {
+      margin: 0 0 12px;
+      color: #8ad8df;
+    }
+
+    .operation-card dl {
+      display: grid;
+      grid-template-columns: minmax(100px, 1fr) minmax(120px, 1.4fr);
+      gap: 9px 12px;
+      margin: 0;
+    }
+
+    .operation-card dt {
+      color: #93a8c0;
+    }
+
+    .operation-card dd {
+      margin: 0;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .operation-value[data-state="verified"],
+    .operation-value[data-state="approved"],
+    .operation-value[data-state="applied"] {
+      color: #91ebc4;
+    }
+
+    .operation-value[data-state="not_run"],
+    .operation-value[data-state="unknown"],
+    .operation-value[data-state="not_observed"] {
+      color: #ffd88c;
+    }
+
+    .operation-value[data-state="failed"],
+    .operation-value[data-state="rejected"],
+    .operation-value[data-state="revoked"],
+    .operation-value[data-state="expired"] {
+      color: #ffb5c1;
+    }
+
+    .verification-panel {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid #51667c;
+    }
+
+    .verification-controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(150px, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .verification-controls label {
+      display: grid;
+      gap: 6px;
+    }
+
+    .verification-controls select {
+      padding: 9px;
+      border: 1px solid #51667c;
+      border-radius: 9px;
+      background: #0f1b2b;
+      color: inherit;
+    }
+
+    .verification-table-wrap {
+      overflow-x: auto;
+    }
+
+    .verification-table {
+      width: 100%;
+      min-width: 1220px;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    .verification-table th,
+    .verification-table td {
+      padding: 9px;
+      border-bottom: 1px solid #344a61;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .verification-table th {
+      color: #8ad8df;
+    }
+
+    @media (max-width: 640px) {
+      .verification-controls {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .network-warning {
       margin: 20px 0;
       padding: 14px 16px;
@@ -231,7 +353,7 @@
 
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 5단계</div>
+    <div class="eyebrow">BYTE BACK · 탈환 작전실</div>
     <h1>최부장의 자료실</h1>
 
     <p>
@@ -255,6 +377,89 @@
         <p id="deviceRegistrationLine" hidden>현재 요청 ID: <code id="deviceRegistrationId"></code></p>
         <button id="deviceRequestButton" type="button" hidden>이 기기 승인 요청</button>
         <button id="deviceUnregisterButton" type="button" hidden>기기 등록 해제</button>
+      </div>
+    </section>
+
+    <section id="operationsRoom" class="box" hidden>
+      <div class="operations-header">
+        <h2>탈환 작전실</h2>
+        <button id="operationsRefreshButton" type="button">상태 다시 확인</button>
+      </div>
+      <p id="operationsSummary">로그인 후 서버 검증 상태를 확인합니다.</p>
+      <div class="operations-grid">
+        <article class="operation-card">
+          <h3>판정기 상태</h3>
+          <dl>
+            <dt>등록 기기</dt><dd><span class="operation-value" data-field="decision-device">미확인</span></dd>
+            <dt>추가 인증</dt><dd><span class="operation-value" data-field="decision-step-up">미확인</span></dd>
+            <dt>자료 구역</dt><dd><span class="operation-value" data-field="decision-zone">미확인</span></dd>
+            <dt>정책</dt><dd><span class="operation-value" data-field="decision-policy">미확인</span></dd>
+          </dl>
+        </article>
+        <article class="operation-card">
+          <h3>탐지 상태</h3>
+          <dl>
+            <dt>이상 접근</dt><dd><span class="operation-value" data-field="detection-unusual">미실행</span></dd>
+            <dt>과다 조회</dt><dd><span class="operation-value" data-field="detection-burst">미실행</span></dd>
+            <dt>XDR 사건/경고</dt><dd><span class="operation-value" data-field="detection-xdr">미확인</span></dd>
+            <dt>마지막 확인</dt><dd><span class="operation-value" data-field="detection-checked">미확인</span></dd>
+          </dl>
+        </article>
+        <article class="operation-card">
+          <h3>회수 상태</h3>
+          <dl>
+            <dt>현재 기기</dt><dd><span class="operation-value" data-field="revocation-device">미확인</span></dd>
+            <dt>신원 회수 기록</dt><dd><span class="operation-value" data-field="revocation-identity">미확인</span></dd>
+            <dt>회수 제안</dt><dd><span class="operation-value" data-field="revocation-proposal">미실행</span></dd>
+            <dt>실제 적용</dt><dd><span class="operation-value" data-field="revocation-enforcement">미확인</span></dd>
+          </dl>
+        </article>
+        <article class="operation-card">
+          <h3>복구 상태</h3>
+          <dl>
+            <dt>정책 백업</dt><dd><span class="operation-value" data-field="recovery-policy">미확인</span></dd>
+            <dt>복구 검증</dt><dd><span class="operation-value" data-field="recovery-verification">미확인</span></dd>
+            <dt>메모 한 건 복구</dt><dd><span class="operation-value" data-field="recovery-note">미확인</span></dd>
+            <dt>마지막 실측</dt><dd><span class="operation-value" data-field="recovery-measured">미실행</span></dd>
+          </dl>
+        </article>
+      </div>
+      <div class="verification-panel">
+        <h3>1~11단계 통합 검증표</h3>
+        <p id="verificationSummary">실제 실행 기록을 불러오지 않았습니다.</p>
+        <div class="verification-controls" aria-label="검증표 필터">
+          <label>단계
+            <select id="verificationStageFilter">
+              <option value="all">전체</option>
+            </select>
+          </label>
+          <label>요청 구분
+            <select id="verificationKindFilter">
+              <option value="all">전체</option>
+              <option value="normal">정상</option>
+              <option value="forbidden">금지</option>
+            </select>
+          </label>
+          <label>실행 상태
+            <select id="verificationStatusFilter">
+              <option value="all">전체</option>
+              <option value="success">성공</option>
+              <option value="failure">실패</option>
+              <option value="not_run">미실행</option>
+              <option value="unverifiable">검증 불가</option>
+            </select>
+          </label>
+        </div>
+        <div class="verification-table-wrap">
+          <table class="verification-table">
+            <thead><tr>
+              <th>시험 ID</th><th>단계</th><th>요청 이름·유형</th><th>구분</th>
+              <th>기대 결과</th><th>실제 결과</th><th>요청 ID</th><th>확인 시각</th>
+              <th>실행 여부</th><th>상태</th><th>근거 출처</th>
+            </tr></thead>
+            <tbody id="verificationRows"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -342,6 +547,15 @@
     var deviceAdminBox = document.querySelector('#deviceAdminBox');
     var deviceAdminStatus = document.querySelector('#deviceAdminStatus');
     var deviceAdminRequests = document.querySelector('#deviceAdminRequests');
+    var operationsRoom = document.querySelector('#operationsRoom');
+    var operationsSummary = document.querySelector('#operationsSummary');
+    var operationsRefreshButton = document.querySelector('#operationsRefreshButton');
+    var verificationSummary = document.querySelector('#verificationSummary');
+    var verificationStageFilter = document.querySelector('#verificationStageFilter');
+    var verificationKindFilter = document.querySelector('#verificationKindFilter');
+    var verificationStatusFilter = document.querySelector('#verificationStatusFilter');
+    var verificationRows = document.querySelector('#verificationRows');
+    var verificationChecks = [];
     var currentSession = null;
     var currentDeviceState = 'unknown';
 
@@ -412,11 +626,174 @@
       deviceRequestButton.hidden = true;
       deviceUnregisterButton.hidden = true;
       hideDeviceAdmin();
+      operationsRoom.hidden = true;
       showDeviceApproval('unknown');
 
       authStatus.classList.remove('error');
       authStatus.textContent =
         message || '로그인하지 않은 상태입니다.';
+    }
+
+    function operationLabel(status) {
+      var labels = {
+        approved: '승인됨', pending: '승인 대기', rejected: '승인 거부',
+        revoked: '취소됨', expired: '만료됨', unknown: '미확인',
+        not_run: '미실행', not_observed: '적용 기록 미확인', applied: '적용됨',
+        success: '성공', failure: '실패', unverifiable: '검증 불가',
+        configured_not_measured: '구현됨 · 운영 실측 미실행',
+        verified_local: '로컬 검증 기록 확인', verification_failed: '검증 실패'
+      };
+      return labels[status] || '미확인';
+    }
+
+    function setOperationField(name, value, state) {
+      var field = document.querySelector('[data-field="' + name + '"]');
+      field.textContent = value;
+      field.dataset.state = state;
+    }
+
+    function verificationText(value, fallback) {
+      return typeof value === 'string' && value.length > 0 ? value : fallback;
+    }
+
+    function renderVerificationChecks() {
+      var stage = verificationStageFilter.value;
+      var kind = verificationKindFilter.value;
+      var status = verificationStatusFilter.value;
+      var filtered = verificationChecks.filter(function (check) {
+        return (stage === 'all' || String(check.stage) === stage)
+          && (kind === 'all' || check.kind === kind)
+          && (status === 'all' || check.status === status);
+      });
+      var rows = filtered.map(function (check) {
+        var row = document.createElement('tr');
+        var evidenceTarget = check.targetEnvironment === 'not_recorded'
+          ? '대상 환경·커밋 미기록'
+          : check.targetEnvironment + ' · ' + verificationText(check.targetCommit, '커밋 미기록');
+        [
+          check.id,
+          String(check.stage),
+          check.name + ' · ' + check.requestType,
+          check.kind === 'normal' ? '정상' : '금지',
+          check.expected,
+          verificationText(check.actual, '미실행'),
+          verificationText(check.requestId, '미기록'),
+          verificationText(check.checkedAt, '미기록'),
+          check.executed ? '실행' : '미실행',
+          operationLabel(check.status),
+          check.evidenceSource + ' · ' + evidenceTarget
+        ].forEach(function (value) {
+          var cell = document.createElement('td');
+          cell.textContent = value;
+          row.append(cell);
+        });
+        return row;
+      });
+      if (rows.length === 0) {
+        var emptyRow = document.createElement('tr');
+        var emptyCell = document.createElement('td');
+        emptyCell.colSpan = 11;
+        emptyCell.textContent = '선택한 조건의 기록이 없습니다.';
+        emptyRow.append(emptyCell);
+        rows.push(emptyRow);
+      }
+      verificationRows.replaceChildren(...rows);
+    }
+
+    function setVerificationChecks(checks, attackSuite) {
+      verificationChecks = Array.isArray(checks) ? checks : [];
+      if (verificationStageFilter.options.length === 1) {
+        for (var stage = 1; stage <= 11; stage += 1) {
+          var option = document.createElement('option');
+          option.value = String(stage);
+          option.textContent = stage + '단계';
+          verificationStageFilter.append(option);
+        }
+      }
+      var officialSpecification = attackSuite.specification === 'not_found_in_repository'
+        ? '공식 41종 명세는 저장소에서 확인되지 않음' : '공식 명세 확인';
+      verificationSummary.textContent = officialSpecification
+        + ' · 공식 공격 실행 0건 · 아래 항목은 프로젝트 회귀 계획이며 모두 미실행';
+      renderVerificationChecks();
+    }
+
+    function renderOperationsStatus(result) {
+      var policy = result.decision.policy;
+      setOperationField('decision-device', operationLabel(result.decision.device.status),
+        result.decision.device.status);
+      setOperationField('decision-step-up', operationLabel(result.decision.stepUp.status),
+        result.decision.stepUp.status);
+      setOperationField('decision-zone', operationLabel(result.decision.zoneAccess.status),
+        result.decision.zoneAccess.status);
+      setOperationField('decision-policy', policy.version || '미확인',
+        policy.status === 'verified_local' ? 'verified' : 'failed');
+
+      setOperationField('detection-unusual', operationLabel(result.detection.unusualAccess.status),
+        result.detection.unusualAccess.status);
+      setOperationField('detection-burst', operationLabel(result.detection.burstRead.status),
+        result.detection.burstRead.status);
+      var xdrKnown = Number.isInteger(result.detection.xdrEventCount)
+        && Number.isInteger(result.detection.xdrWarningCount);
+      setOperationField('detection-xdr', xdrKnown
+        ? result.detection.xdrEventCount + '건 / ' + result.detection.xdrWarningCount + '건'
+        : '미확인', xdrKnown ? 'verified' : 'unknown');
+      setOperationField('detection-checked', result.detection.lastCheckedAt
+        ? formatRequestedAt(result.detection.lastCheckedAt) : '미확인',
+      result.detection.lastCheckedAt ? 'verified' : 'unknown');
+
+      setOperationField('revocation-device', operationLabel(result.revocation.device.status),
+        result.revocation.device.status);
+      setOperationField('revocation-identity', operationLabel(result.revocation.identity.status),
+        result.revocation.identity.status);
+      setOperationField('revocation-proposal', operationLabel(result.revocation.proposal.status),
+        result.revocation.proposal.status);
+      setOperationField('revocation-enforcement', operationLabel(result.revocation.enforcement.status),
+        result.revocation.enforcement.status);
+
+      setOperationField('recovery-policy', policy.version || '미확인',
+        policy.status === 'verified_local' ? 'verified' : 'failed');
+      var policyMatch = policy.application === 'matches_current_bundle';
+      setOperationField('recovery-verification', policyMatch
+        ? '기준점과 현재 번들 일치 · 커밋 존재 재검증 미실행'
+        : policy.application === 'differs' ? '현재 번들과 다름' : '미확인',
+      policyMatch ? 'verified' : policy.application === 'differs' ? 'failed' : 'unknown');
+      setOperationField('recovery-note', operationLabel(result.recovery.noteRestore.status),
+        result.recovery.noteRestore.status);
+      setOperationField('recovery-measured', result.recovery.lastMeasuredAt
+        ? formatRequestedAt(result.recovery.lastMeasuredAt) : '미실행',
+      result.recovery.lastMeasuredAt ? 'verified' : 'not_run');
+
+      operationsSummary.textContent = '서버 확인 ' + formatRequestedAt(result.checkedAt)
+        + ' · 41종 공격 시험: ' + operationLabel(result.attackSuite.status);
+      setVerificationChecks(result.verification && result.verification.checks, result.attackSuite);
+      operationsRoom.hidden = false;
+    }
+
+    async function refreshOperationsStatus() {
+      var session = await getSession();
+      if (!session || !navigator.onLine) {
+        operationsRoom.hidden = true;
+        return;
+      }
+      operationsRefreshButton.disabled = true;
+      operationsSummary.textContent = '서버 상태를 확인하는 중입니다.';
+      operationsRoom.hidden = false;
+      try {
+        renderOperationsStatus(await authenticatedFetch('/api/operations/status', {
+          method: 'GET'
+        }));
+      } catch (error) {
+        operationsSummary.textContent = '상태 조회 실패: ' + error.message;
+        document.querySelectorAll('.operation-value').forEach(function (field) {
+          field.textContent = '조회 실패';
+          field.dataset.state = 'failed';
+        });
+        verificationChecks = [];
+        verificationSummary.textContent = '검증표 조회 실패';
+        renderVerificationChecks();
+      } finally {
+        operationsRefreshButton.disabled = false;
+      }
     }
 
     function hideDeviceAdmin() {
@@ -611,6 +988,7 @@
 
         showLoggedIn(data.user);
         await refreshDeviceApprovalStatus();
+        await refreshOperationsStatus();
         await refreshDeviceAdminRequests();
         await loadNotes();
       } catch (error) {
@@ -653,6 +1031,11 @@
         deviceUnregisterButton.disabled = false;
       }
     });
+
+    operationsRefreshButton.addEventListener('click', refreshOperationsStatus);
+    verificationStageFilter.addEventListener('change', renderVerificationChecks);
+    verificationKindFilter.addEventListener('change', renderVerificationChecks);
+    verificationStatusFilter.addEventListener('change', renderVerificationChecks);
 
     createForm.addEventListener('submit', async function (event) {
       event.preventDefault();
@@ -818,6 +1201,7 @@
       var session = await getSession();
       if (session) {
         await refreshDeviceApprovalStatus();
+        await refreshOperationsStatus();
         await refreshDeviceAdminRequests();
         await loadNotes();
       }
@@ -832,6 +1216,7 @@
     updateInstallStatus();
     await refreshAuthState();
     await refreshDeviceApprovalStatus();
+    await refreshOperationsStatus();
     updateNetworkStatus();
     await loadNotes();
   </script>

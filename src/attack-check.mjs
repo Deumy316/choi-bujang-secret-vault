@@ -5,8 +5,8 @@ import { fixtureRequests } from '../scripts/fixture-7.mjs';
 import { decide } from './decider.mjs';
 
 export async function runAttackChecks(config) {
-  if (![5, 6, 7, 8, 9, 10, 11].includes(config.step)) {
-    throw new Error('5~11단계 공격 점검은 해당 step에서 실행해야 합니다.');
+  if (![5, 6, 7, 8, 9, 10, 11, 12].includes(config.step)) {
+    throw new Error('5~12단계 공격 점검은 해당 step에서 실행해야 합니다.');
   }
 
   if (config.step >= 11) {
@@ -20,6 +20,10 @@ export async function runAttackChecks(config) {
     if (!deviceRoutes.every((route) => config.allowedRoutes?.includes(route))) {
       throw new Error('11단계 기기 승인 API 경로 설정을 확인해 주세요.');
     }
+  }
+
+  if (config.step >= 12 && !config.allowedRoutes?.includes('GET /api/operations/status')) {
+    throw new Error('12단계 탈환 작전실 상태 API 경로 설정을 확인해 주세요.');
   }
 
   let app;

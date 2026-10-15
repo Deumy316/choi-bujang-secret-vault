@@ -207,6 +207,16 @@ Production Supabase에는 `20261014000000`~`20261014000003` SQL을 수동 적용
 
 인증된 사용자는 기기 승인을 요청할 수 있고, 별도 관리자만 대기 요청을 승인·거부하거나 승인 기기를 취소할 수 있습니다. 서버는 승인 기록의 소유자, 상태, 서버 만료 시각과 HttpOnly·Secure·SameSite=Strict 쿠키 자격증명을 함께 검증합니다. 승인 전·거부·취소·만료·확인 불가 상태에서는 메모 CRUD와 세 복원 경로를 차단하며 모든 보호 API 응답은 `Cache-Control: private, no-store`를 사용합니다. HttpOnly 쿠키는 브라우저 JavaScript의 직접 탈취를 줄이지만 기기 하드웨어 공개키 증명은 아니므로, PWA 설치만으로 기기를 신뢰하지 않습니다.
 
-운영 적용 전 `supabase/migrations/20261015000000_device_registrations.sql`을 검토·적용하고 `DEVICE_APPROVAL_ADMIN_SUBJECTS`에 승인 담당자의 검증된 UUID를 서버 환경변수로 설정해야 합니다. 둘 중 하나라도 준비되지 않으면 승인 상태 확인과 보호 API 접근은 안전하게 실패합니다. 로컬 최소 확인은 `node --test test/device-approval.test.mjs test/pwa-assets.test.mjs`로 실행하며, Production DB 마이그레이션·실제 기기 승인·배포는 이 저장점에서 실행하지 않았습니다.
+이 문단의 "운영 적용 전" 기록은 11단계 저장점 당시 상태입니다. 이후 운영자가 `supabase/migrations/20261015000000_device_registrations.sql` 적용, RLS·service_role 권한, Vercel의 `DEVICE_APPROVAL_ADMIN_SUBJECTS` 설정과 11단계 배포를 확인했습니다. 일반 사용자의 승인 대기 요청과 관리자 목록 조회까지 확인했지만, 실제 승인 POST 완료를 이 저장소 기록만으로 입증하지 않았으므로 승인 완료로 쓰지 않습니다. 새 환경에서는 같은 마이그레이션과 관리자 설정을 별도로 준비해야 하며, 둘 중 하나라도 없으면 승인 상태 확인과 보호 API 접근은 안전하게 실패합니다. 로컬 최소 확인 명령은 `node --test test/device-approval.test.mjs test/pwa-assets.test.mjs`이며 실제 운영 승인 결과를 대신하지 않습니다.
 
 일반 사용자와 승인 관리자는 서로 다른 브라우저 프로필을 사용해야 합니다. 같은 호스트의 `__Host-byteback_device` 쿠키는 프로필 안에서 계정별로 분리되지 않으므로, 한 프로필에서 두 계정이 각각 기기 요청을 만들면 나중 요청의 자격증명이 앞선 요청을 덮어쓸 수 있습니다. 일반 사용자 화면의 현재 요청 ID와 관리자 대기 목록의 요청 ID가 정확히 같을 때만 승인하며, ID가 보이지 않거나 다르면 승인하지 않습니다. 요청 ID 자체는 인증 수단이 아니며 JWT·HttpOnly 쿠키·서버 등록 기록 검증은 그대로 적용됩니다.
+
+## 12단계 제작 1~3: 탈환 작전실과 재현 문서
+
+로그인 뒤 보이는 탈환 작전실은 판정·탐지·회수·복구 상태를 네 카드로 구분합니다. `GET /api/operations/status`는 현재 사용자의 서버 검증 기기 상태와 저장소의 정책 기준점 검증 결과만 반환합니다. 운영 근거가 없는 추가 인증·자료 구역 판정, XDR 사건 수, 회수 집행과 메모 복구 실측은 `미확인` 또는 `미실행`으로 남기며 `xdr/alerts.log`를 공식 통과 근거로 사용하지 않습니다.
+
+카드 아래의 1~11단계 통합 검증표에는 단계마다 정상·금지 요청 하나씩 총 22개 회귀 계획이 있습니다. 실제 결과·요청 ID·확인 시각·대상 환경·커밋은 실행 증거가 있을 때만 기록합니다. 저장소에는 공식 41종 공격의 개별 명세가 없으므로 프로젝트 자체 점검과 구분하며, 공식 41종은 현재 **명세 미확인·미실행**입니다. 기록 절차는 [docs/OPERATIONS_VERIFICATION.md](docs/OPERATIONS_VERIFICATION.md), 새 Clone의 설치·실행·중지·복구 절차는 [docs/RUNBOOK.md](docs/RUNBOOK.md)를 따릅니다.
+
+ALEPH SDP 엔진은 교육 과정에서 제공된 엔진입니다. 학생 구현 범위는 이 저장소의 `src/decider.mjs` 정책 판정, `src/detect.mjs` 탐지 규칙, 자료실 API와 PWA, 기기 승인, XDR 연습 연결, 정책·메모 복구 처리와 탈환 작전실입니다. 제공 엔진 자체를 학생이 개발한 것으로 설명하지 않습니다. 비밀번호·JWT·API 키·DB 비밀번호·기기 개인키·개인정보는 저장소와 실행 기록에 넣지 않습니다.
+
+12단계 제출 저장점에서 `aleph.config.json`의 step을 12로 변경했습니다. `package.json`과 lockfile은 Node.js 22 이상, `@supabase/supabase-js` 2.117.2, `jose` 6.2.12로 일치하지만, 새 Clone의 실제 `npm install`과 외부 npm registry 접근은 이번 제작에서 실행하지 않았습니다. 판정기는 `docs/DECIDER_REQUEST.md`의 계약 필드만 사용하고 응답의 `ruleIds`는 `RULE_IDS` 세 항목 안에서 선택하도록 구현되어 있으나, 전체 가상 요청 시험은 이번 제작에서 재실행하지 않았습니다.
