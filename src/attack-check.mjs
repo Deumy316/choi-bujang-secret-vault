@@ -1,9 +1,6 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 
-import { fixtureRequests } from '../scripts/fixture-7.mjs';
-import { decide } from './decider.mjs';
-
 export async function runAttackChecks(config) {
   if (![5, 6, 7, 8, 9, 10, 11, 12].includes(config.step)) {
     throw new Error('5~12단계 공격 점검은 해당 step에서 실행해야 합니다.');
@@ -48,26 +45,35 @@ export async function runAttackChecks(config) {
 
   // 1. 공개 data.json에 메모가 다시 노출되지 않았는지 확인
   const staticResponse = await fetch(new URL('/data.json', app), {
+    method: 'GET',
     redirect: 'error',
     signal: AbortSignal.timeout(10000),
   });
 
+  let staticData = null;
   let staticNotesVisible = false;
 
-  if (staticResponse.ok) {
+  if (staticResponse.status === 200) {
     try {
-      const data = await staticResponse.json();
-
+      staticData = await staticResponse.json();
       staticNotesVisible =
-        Array.isArray(data?.notes) &&
-        data.notes.length > 0;
+        Array.isArray(staticData?.notes) && staticData.notes.length > 0;
     } catch {
-      staticNotesVisible = false;
+      staticData = null;
     }
+  }
+
+  const staticShapeValid = staticData && typeof staticData === 'object'
+    && !Array.isArray(staticData) && Array.isArray(staticData.notes);
+  const sampleExposed = staticShapeValid
+    && JSON.stringify(staticData).includes(config.sampleMarker);
+  if (!staticShapeValid || staticNotesVisible || sampleExposed) {
+    throw new Error('공개 data.json 응답 검증에 실패했습니다.');
   }
 
   // 2. 로그인 없는 API 요청이 계속 차단되는지 확인
   const apiResponse = await fetch(new URL('/api/notes', app), {
+    method: 'GET',
     redirect: 'error',
     signal: AbortSignal.timeout(10000),
   });
@@ -83,11 +89,19 @@ export async function runAttackChecks(config) {
   const anonymousBlocked =
     (apiResponse.status === 401 || apiResponse.status === 403) &&
     apiError &&
+    typeof apiError === 'object' &&
+    !Array.isArray(apiError) &&
     typeof apiError.error === 'string' &&
-    apiError.error.length > 0;
+    apiError.error.length > 0 &&
+    !('notes' in apiError);
+
+  if (!anonymousBlocked) {
+    throw new Error('로그인 없는 자료 API가 계약대로 거부되지 않았습니다.');
+  }
 
   // 3. 4단계 배포 식별 정보가 정상 공개되는지 확인
   const identityResponse = await fetch(new URL('/aleph.json', app), {
+    method: 'GET',
     redirect: 'error',
     signal: AbortSignal.timeout(10000),
   });
@@ -99,12 +113,20 @@ export async function runAttackChecks(config) {
       const identity = await identityResponse.json();
 
       identityAvailable =
-        identity?.step === config.step &&
-        typeof identity?.repoUrl === 'string' &&
-        identity?.publicAppUrl === config.publicAppUrl;
+        identity && typeof identity === 'object' && !Array.isArray(identity) &&
+        identity.step === config.step &&
+        typeof identity.repoUrl === 'string' &&
+        identity.repoUrl.toLowerCase() === config.repoUrl.toLowerCase() &&
+        identity.publicAppUrl === config.publicAppUrl &&
+        typeof identity.commit === 'string' &&
+        /^[0-9a-f]{40}$/iu.test(identity.commit);
     } catch {
       identityAvailable = false;
     }
+  }
+
+  if (!identityAvailable) {
+    throw new Error('배포 식별 정보 검증에 실패했습니다.');
   }
 
   const attempts = [
@@ -126,19 +148,6 @@ export async function runAttackChecks(config) {
   ];
 
   if (config.step >= 6) {
-    const { normal } = fixtureRequests();
-    const request = { ...normal, deviceRegistered: false };
-    const response = await decide(request);
-    const unregisteredDeviceBlocked =
-      response && typeof response === 'object' && !Array.isArray(response) &&
-      Object.keys(response).sort().join(',') === 'decision,reasonCode,requestId,ruleIds,schema' &&
-      response.schema === 'aleph.decision.v1' &&
-      response.requestId === request.requestId &&
-      response.decision === 'deny' &&
-      response.reasonCode === 'device_not_registered' &&
-      Array.isArray(response.ruleIds) &&
-      response.ruleIds.includes('device_registered');
-
     attempts.push({
       attackId: 'unregistered_device_read',
       expected: '미등록 기기의 자료실 읽기 요청을 device_not_registered로 거부',
@@ -147,21 +156,6 @@ export async function runAttackChecks(config) {
   }
 
   if (config.step >= 7) {
-    const { normal, suspicious } = fixtureRequests();
-    const verified = {
-      ...suspicious,
-      stepUp: { verified: true, authAgeSeconds: 60 },
-    };
-    const [normalResponse, suspiciousResponse, verifiedResponse] = await Promise.all([
-      decide(normal),
-      decide(suspicious),
-      decide(verified),
-    ]);
-    const expectedDecisions = normalResponse?.decision === 'allow'
-      && suspiciousResponse?.decision === 'step_up'
-      && suspiciousResponse?.reasonCode === 'step_up_required'
-      && verifiedResponse?.decision === 'allow';
-
     attempts.push({
       attackId: 'unusual_access_step_up',
       expected: '정상 가상 요청은 allow, 복합 이상은 step_up, 추가 확인한 새 요청은 allow',

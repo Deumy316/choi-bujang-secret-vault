@@ -5,6 +5,7 @@ import { runAttackChecks } from '../src/attack-check.mjs';
 
 const config = {
   step: 10,
+  repoUrl: 'https://github.com/student-a/aleph-defense',
   judgeIssuer: 'https://aleph-judge-production.up.railway.app/defense/judge',
   sampleMarker: 'SAMPLE_NOTE_1',
   publicAppUrl: 'https://student-defense.vercel.app',
@@ -57,10 +58,9 @@ test('build identity uses current Vercel Git metadata and canonical app URL', ()
   assert.throws(() => deploymentIdentity(env, { ...config, restoreRoute: '/wrong' }));
 });
 
-test('current attack checks use public endpoints without credentials', async () => {
+test('current attack checks validate three GET responses and leave unexecuted checks not_run', async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
-  let identityPublicAppUrl = config.publicAppUrl;
   try {
     globalThis.fetch = async (url, init) => {
       const requestUrl = String(url);
@@ -72,12 +72,10 @@ test('current attack checks use public endpoints without credentials', async () 
       if (requestUrl.endsWith('/aleph.json')) {
         return Response.json({
           step: stage12Config.step,
-          repoUrl: 'https://github.com/student-a/aleph-defense',
-          publicAppUrl: identityPublicAppUrl,
+          repoUrl: stage12Config.repoUrl,
+          publicAppUrl: stage12Config.publicAppUrl,
+          commit: 'b'.repeat(40),
         });
-      }
-      if (requestUrl.endsWith('/api/restore/00000000-0000-4000-8000-000000000000')) {
-        return Response.json({ error: 'Login required' }, { status: 401 });
       }
       return Response.json({ error: 'unexpected request' }, { status: 500 });
     };
@@ -87,18 +85,62 @@ test('current attack checks use public endpoints without credentials', async () 
       'https://student-defense.vercel.app/data.json',
       'https://student-defense.vercel.app/api/notes',
       'https://student-defense.vercel.app/aleph.json',
-      'https://student-defense.vercel.app/api/restore/00000000-0000-4000-8000-000000000000',
     ]);
-    assert.equal(requests.every(request => request.init.redirect === 'error'), true);
+    assert.equal(requests.every(request => request.init.method === 'GET'
+      && request.init.redirect === 'error'), true);
     assert.equal(results.length, 6);
-    assert.match(results[0].observed, /확인되지 않음/u);
-    assert.match(results[1].observed, /차단됨/u);
-    assert.match(results[2].observed, /12단계/u);
-    assert.match(results[5].observed, /HTTP 401/u);
+    assert.deepEqual(results.map(result => result.observed), [
+      'HTTP 200', 'HTTP 401', 'HTTP 200', 'not_run', 'not_run', 'not_run',
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
-    identityPublicAppUrl = 'https://different-deployment.vercel.app';
-    const mismatchedIdentityResults = await runAttackChecks(stage12Config);
-    assert.match(mismatchedIdentityResults[2].observed, /확인하지 못함/u);
+test('current attack checks reject exposed notes and invalid denial or identity responses', async () => {
+  const originalFetch = globalThis.fetch;
+  const responses = {
+    data: () => Response.json({ notes: [] }),
+    notes: () => Response.json({ error: 'Login required' }, { status: 401 }),
+    identity: () => Response.json({
+      step: 12,
+      repoUrl: stage12Config.repoUrl,
+      publicAppUrl: stage12Config.publicAppUrl,
+      commit: 'b'.repeat(40),
+    }),
+  };
+  try {
+    globalThis.fetch = async (url) => {
+      const requestUrl = String(url);
+      if (requestUrl.endsWith('/data.json')) return responses.data();
+      if (requestUrl.endsWith('/api/notes')) return responses.notes();
+      if (requestUrl.endsWith('/aleph.json')) return responses.identity();
+      throw new Error('unexpected request');
+    };
+
+    responses.data = () => Response.json({ notes: [{ content: 'hidden' }] });
+    await assert.rejects(runAttackChecks(stage12Config), /data\.json 응답 검증/u);
+
+    responses.data = () => Response.json({ notes: [] });
+    responses.notes = () => Response.json({ notes: [] }, { status: 401 });
+    await assert.rejects(runAttackChecks(stage12Config), /계약대로 거부/u);
+
+    responses.notes = () => Response.json({ error: 'Login required' }, { status: 401 });
+    const validIdentity = {
+      step: 11,
+      repoUrl: stage12Config.repoUrl,
+      publicAppUrl: stage12Config.publicAppUrl,
+      commit: 'b'.repeat(40),
+    };
+    for (const invalidIdentity of [
+      validIdentity,
+      { ...validIdentity, step: 12, repoUrl: 'https://github.com/student-b/other' },
+      { ...validIdentity, step: 12, publicAppUrl: 'https://other.vercel.app' },
+      { ...validIdentity, step: 12, commit: 'short' },
+    ]) {
+      responses.identity = () => Response.json(invalidIdentity);
+      await assert.rejects(runAttackChecks(stage12Config), /배포 식별 정보 검증/u);
+    }
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -45,9 +45,26 @@ export function listVerificationChecks() {
   return CHECKS;
 }
 
+export const regressionPlan = Object.freeze({
+  plannedTotal: CHECKS.length,
+  evidenceCount: CHECKS.filter(check => check.executed).length,
+  status: 'not_run',
+  evidenceSource: 'static_plan_only',
+});
+
+export const bundleSelfCheck = Object.freeze({
+  expectedTotal: 6,
+  getCheckCount: 3,
+  notRunCount: 3,
+  status: 'results_unavailable',
+  evidenceSource: 'source_contract_only',
+  targetEnvironment: 'bundle_local',
+});
+
 export const officialAttackSuite = Object.freeze({
   expectedTotal: 41,
   specification: 'not_found_in_repository',
-  executedCount: 0,
-  status: 'not_run',
+  executedCount: null,
+  status: 'unknown',
+  evidenceSource: 'not_available',
 });

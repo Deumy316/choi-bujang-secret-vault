@@ -393,7 +393,7 @@
             <dt>등록 기기</dt><dd><span class="operation-value" data-field="decision-device">미확인</span></dd>
             <dt>추가 인증</dt><dd><span class="operation-value" data-field="decision-step-up">미확인</span></dd>
             <dt>자료 구역</dt><dd><span class="operation-value" data-field="decision-zone">미확인</span></dd>
-            <dt>정책</dt><dd><span class="operation-value" data-field="decision-policy">미확인</span></dd>
+            <dt>운영 정책 적용</dt><dd><span class="operation-value" data-field="decision-policy">미확인</span></dd>
           </dl>
         </article>
         <article class="operation-card">
@@ -417,8 +417,8 @@
         <article class="operation-card">
           <h3>복구 상태</h3>
           <dl>
-            <dt>정책 백업</dt><dd><span class="operation-value" data-field="recovery-policy">미확인</span></dd>
-            <dt>복구 검증</dt><dd><span class="operation-value" data-field="recovery-verification">미확인</span></dd>
+            <dt>정책 파일 해시</dt><dd><span class="operation-value" data-field="recovery-policy">미확인</span></dd>
+            <dt>원본 커밋</dt><dd><span class="operation-value" data-field="recovery-verification">미확인</span></dd>
             <dt>메모 한 건 복구</dt><dd><span class="operation-value" data-field="recovery-note">미확인</span></dd>
             <dt>마지막 실측</dt><dd><span class="operation-value" data-field="recovery-measured">미실행</span></dd>
           </dl>
@@ -427,6 +427,11 @@
       <div class="verification-panel">
         <h3>1~11단계 통합 검증표</h3>
         <p id="verificationSummary">실제 실행 기록을 불러오지 않았습니다.</p>
+        <div class="verification-evidence" aria-label="검증 증거 구분">
+          <p><strong>A. 회귀 검증 계획</strong> <span id="regressionEvidence">미확인</span></p>
+          <p><strong>B. Bundle 자기 점검</strong> <span id="bundleEvidence">미확인</span></p>
+          <p><strong>C. 공식 총공세</strong> <span id="officialEvidence">미확인</span></p>
+        </div>
         <div class="verification-controls" aria-label="검증표 필터">
           <label>단계
             <select id="verificationStageFilter">
@@ -551,6 +556,9 @@
     var operationsSummary = document.querySelector('#operationsSummary');
     var operationsRefreshButton = document.querySelector('#operationsRefreshButton');
     var verificationSummary = document.querySelector('#verificationSummary');
+    var regressionEvidence = document.querySelector('#regressionEvidence');
+    var bundleEvidence = document.querySelector('#bundleEvidence');
+    var officialEvidence = document.querySelector('#officialEvidence');
     var verificationStageFilter = document.querySelector('#verificationStageFilter');
     var verificationKindFilter = document.querySelector('#verificationKindFilter');
     var verificationStatusFilter = document.querySelector('#verificationStatusFilter');
@@ -639,9 +647,10 @@
         approved: '승인됨', pending: '승인 대기', rejected: '승인 거부',
         revoked: '취소됨', expired: '만료됨', unknown: '미확인',
         not_run: '미실행', not_observed: '적용 기록 미확인', applied: '적용됨',
-        success: '성공', failure: '실패', unverifiable: '검증 불가',
+        success: '성공', failure: '실패', matches: '기준점과 일치', differs: '기준점과 다름',
+        unverifiable: '검증 불가',
         configured_not_measured: '구현됨 · 운영 실측 미실행',
-        verified_local: '로컬 검증 기록 확인', verification_failed: '검증 실패'
+        verification_incomplete: '검증 미완료', verification_failed: '검증 실패'
       };
       return labels[status] || '미확인';
     }
@@ -700,7 +709,7 @@
       verificationRows.replaceChildren(...rows);
     }
 
-    function setVerificationChecks(checks, attackSuite) {
+    function setVerificationChecks(checks, plan, bundleSelfCheck, attackSuite) {
       verificationChecks = Array.isArray(checks) ? checks : [];
       if (verificationStageFilter.options.length === 1) {
         for (var stage = 1; stage <= 11; stage += 1) {
@@ -712,8 +721,13 @@
       }
       var officialSpecification = attackSuite.specification === 'not_found_in_repository'
         ? '공식 41종 명세는 저장소에서 확인되지 않음' : '공식 명세 확인';
-      verificationSummary.textContent = officialSpecification
-        + ' · 공식 공격 실행 0건 · 아래 항목은 프로젝트 회귀 계획이며 모두 미실행';
+      verificationSummary.textContent = '아래 표는 실행 증거가 아닌 1~11단계 회귀 검증 계획입니다.';
+      regressionEvidence.textContent = plan.plannedTotal + '개 계획 · 실행 증거 '
+        + plan.evidenceCount + '개 · 모두 미실행';
+      bundleEvidence.textContent = 'GET 점검 ' + bundleSelfCheck.getCheckCount
+        + '개 · 미실행 점검 ' + bundleSelfCheck.notRunCount
+        + '개 · 로컬 Bundle 실행 결과는 운영 서버에서 읽지 않음';
+      officialEvidence.textContent = officialSpecification + ' · 실제 심판 결과 미확인';
       renderVerificationChecks();
     }
 
@@ -725,8 +739,8 @@
         result.decision.stepUp.status);
       setOperationField('decision-zone', operationLabel(result.decision.zoneAccess.status),
         result.decision.zoneAccess.status);
-      setOperationField('decision-policy', policy.version || '미확인',
-        policy.status === 'verified_local' ? 'verified' : 'failed');
+      setOperationField('decision-policy', operationLabel(policy.runtimeApplication),
+        policy.runtimeApplication || 'unknown');
 
       setOperationField('detection-unusual', operationLabel(result.detection.unusualAccess.status),
         result.detection.unusualAccess.status);
@@ -750,13 +764,12 @@
       setOperationField('revocation-enforcement', operationLabel(result.revocation.enforcement.status),
         result.revocation.enforcement.status);
 
-      setOperationField('recovery-policy', policy.version || '미확인',
-        policy.status === 'verified_local' ? 'verified' : 'failed');
-      var policyMatch = policy.application === 'matches_current_bundle';
-      setOperationField('recovery-verification', policyMatch
-        ? '기준점과 현재 번들 일치 · 커밋 존재 재검증 미실행'
-        : policy.application === 'differs' ? '현재 번들과 다름' : '미확인',
-      policyMatch ? 'verified' : policy.application === 'differs' ? 'failed' : 'unknown');
+      var policyHashMatches = policy.fileHashCheck === 'matches';
+      setOperationField('recovery-policy', operationLabel(policy.fileHashCheck)
+        + (policy.version ? ' · ' + policy.version : ''),
+      policyHashMatches ? 'verified' : policy.fileHashCheck === 'differs' ? 'failed' : 'unknown');
+      setOperationField('recovery-verification', operationLabel(policy.sourceCommitCheck),
+        policy.sourceCommitCheck || 'unknown');
       setOperationField('recovery-note', operationLabel(result.recovery.noteRestore.status),
         result.recovery.noteRestore.status);
       setOperationField('recovery-measured', result.recovery.lastMeasuredAt
@@ -765,7 +778,9 @@
 
       operationsSummary.textContent = '서버 확인 ' + formatRequestedAt(result.checkedAt)
         + ' · 41종 공격 시험: ' + operationLabel(result.attackSuite.status);
-      setVerificationChecks(result.verification && result.verification.checks, result.attackSuite);
+      setVerificationChecks(result.verification && result.verification.checks,
+        result.verification && result.verification.plan,
+        result.bundleSelfCheck, result.attackSuite);
       operationsRoom.hidden = false;
     }
 
