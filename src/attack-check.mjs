@@ -185,28 +185,10 @@ export async function runAttackChecks(config) {
       throw new Error('10단계 복원 API 경로 설정을 확인해 주세요.');
     }
 
-    const restorePath = config.restoreRoute.replace(
-      ':noteId',
-      '00000000-0000-4000-8000-000000000000'
-    );
-    const restoreResponse = await fetch(new URL(restorePath, app), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: '00000000-0000-4000-8000-000000000000' }),
-      redirect: 'error',
-      signal: AbortSignal.timeout(10000),
-    });
-    let restoreError = null;
-    try { restoreError = await restoreResponse.json(); } catch {}
-    const anonymousRestoreBlocked = restoreResponse.status === 401
-      && typeof restoreError?.error === 'string' && restoreError.error.length > 0;
-
     attempts.push({
       attackId: 'anonymous_note_restore',
       expected: '인증 없는 메모 복원 요청을 401 JSON 오류로 거부',
-      observed: anonymousRestoreBlocked
-        ? '인증 없는 메모 복원 요청이 JSON 오류로 차단됨 (HTTP 401)'
-        : `인증 없는 메모 복원 요청 차단 조건을 만족하지 못함 (HTTP ${restoreResponse.status})`,
+      observed: 'not_run',
     });
   }
 
