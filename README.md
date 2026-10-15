@@ -113,6 +113,20 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 `POST /api/restore/:noteId`(`restoreRoute`)는 `src/note-restore.mjs`의 `restoreOneVerifiedNote` 순서로만 복원합니다.
 
+### S10_BACKUP_UNVERIFIED 대응: 백업 검증
+
+1. 복원 직전에 **침해 전에 검증한 사본을 서버에서 다시 읽습니다.** 클라이언트가 보낸 제목·본문·소유자나 해시는 사본으로 사용하지 않습니다.
+2. 사본의 메모 ID·소유자 ID를 복원 대상 및 검증된 호출자와 대조하고, 제목·본문 SHA-256과 `ID + 소유자 + 제목 해시 + 본문 해시`의 레코드 SHA-256을 다시 계산해 저장값과 비교합니다.
+3. 실행 전에는 사본 버전과 변경될 메모 한 건을 확인합니다. 정책은 `node scripts/compare-policy-backup.mjs`로 복원 대상 버전, 변경 대상, 기존 SHA-256, 복원 예정 SHA-256과 변경 여부를 먼저 표시하며 이 단계에서는 복원하지 않습니다.
+4. 사본이 없거나 승인·검증 기록 또는 어느 SHA-256이라도 일치하지 않으면 RPC를 호출하지 않고 아무 데이터도 변경하지 않은 채 중단합니다. 따라서 Production 승인 백업이 0건일 때 `backup_not_found`로 복원을 중단하는 것이 올바른 동작입니다.
+
+### S10_RESTORE_MISMATCH 대응: 한 건 복원 일치
+
+1. 검증된 사본과 같은 ID·소유자의 지정된 메모 **한 건만** 갱신하거나, 삭제된 경우 같은 ID·소유자로 다시 생성합니다.
+2. 복원 직후 그 한 건을 다시 읽어 ID·소유자·제목 SHA-256·본문 SHA-256·레코드 SHA-256을 복원 전에 검증한 사본과 비교합니다.
+3. 하나라도 불일치하면 성공으로 기록하거나 응답하지 않습니다. 다른 메모는 변경하지 않고 기존 감사 기록은 보존하며, 성공한 복원 감사 기록만 추가합니다.
+4. RPC 내부의 복원, 사후 검증 또는 감사 추가가 실패하면 같은 트랜잭션을 롤백해 부분 변경을 남기지 않습니다. RPC 이후 API 재조회가 불일치하면 성공으로 기록하지 않습니다.
+
 1. **사본 다시 읽기·검증(`readVerifiedBackup`)**: 호출자 소유의 승인된 사본(`vault_note_backups`)을 읽고 제목·본문·레코드 SHA-256을 서버에서 다시 계산해 저장된 지문과 대조합니다. 사본이 없으면 404(`backup_not_found`), 하나라도 다르면 409(`backup_unverified`)로 멈추고 **복원 RPC를 부르지 않습니다.**
 2. **원자적 복원(`restore_single_verified_note`)**: 검증을 통과한 경우에만 DB 함수가 같은 검증을 한 번 더 하고 한 건만 되돌리거나 다시 만들며 감사 기록을 남깁니다.
 3. **복원 뒤 재대조(`verifyRestoredNote`)**: 복원한 메모 한 건을 다시 읽어 ID·소유자·제목/본문/레코드 지문이 1번의 사본과 같은지 확인합니다. 다르면 409(`restore_mismatch`). 응답에는 ID·소유자·지문만 넣고 본문은 넣지 않습니다.
@@ -122,7 +136,7 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 ## 10단계 제작 4: 복구 후 1~9단계 회귀시험 계획
 
-이 절은 기존 1~9단계 기록을 대체하지 않습니다. 새 복구 기준점은 현재 정책으로 만든 로컬 기준점이며 침해 이전 백업이 아닙니다. Production에는 `20261014000000`~`20261014000003` SQL이 수동 적용되어 복원 RPC, 최소 권한 테이블, `note_id` UNIQUE 인덱스와 신규 메모 생성 RPC가 설치되어 있습니다. 기존 메모 4건은 자동 백업하지 않았으며 시험 계정 B의 검증된 사전 백업은 0건입니다. 공식 심판 복원 요청 계약은 여전히 미확인입니다.
+이 절은 기존 1~9단계 기록을 대체하지 않습니다. 새 복구 기준점은 현재 정책으로 만든 로컬 기준점이며 침해 이전 백업이 아닙니다. Production에는 `20261014000000`~`20261014000003` SQL이 수동 적용되어 복원 RPC, 최소 권한 테이블, `note_id` UNIQUE 인덱스와 신규 메모 생성 RPC가 설치되어 있습니다. 기존 메모 4건은 자동 백업하지 않았으며 시험 계정 B의 검증된 사전 백업은 0건입니다. 운영 측 답변에 따르면 10단계 심판은 Production DB 메모를 실제로 복원하거나 평가 중 새 메모를 만들지 않고, 이 README와 `aleph.config.json`의 `restoreRoute`에 기록된 절차를 읽어 판정합니다.
 
 신규 `POST /api/notes`는 검증된 로그인 사용자의 ID만 소유자로 사용하고 `create_note_with_initial_backup` RPC에서 메모와 승인된 최초 사본을 한 트랜잭션으로 생성합니다. 이후 PUT/DELETE는 최초 사본을 변경하지 않습니다. 기존 메모를 정상 원본으로 간주하거나 소급 백업하지 않습니다.
 
@@ -136,6 +150,10 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 상태는 `통과`(이미 실행한 로컬 시험), `미실행`(아직 실행 증거 없음), `중단`(선행 복원 실패로 실행하지 않음)으로 기록합니다. 로컬 가상 요청 결과를 운영 검증이나 공식 심판 통과로 해석하지 않습니다.
 
+### 복원 후 재시험 원칙
+
+정책과 메모 복원의 무결성 검증이 먼저 통과한 뒤 아래 1~9단계를 순서대로 확인합니다. 각 행에는 정상 요청과 금지 요청의 기대 결과, 실제 결과와 상태를 따로 기록합니다. 격리 PostgreSQL에서 실제 확인한 변조·삭제 복원, SHA-256 일치, 타 소유자 거부, 다른 메모 보존, 감사 추가 및 실패 롤백만 `통과(격리)`로 표시합니다. 실제 Production HTTP 시험과 judge B 복원은 `미실행`으로 유지하며, 실행하지 않은 결과를 추정해 통과로 바꾸지 않습니다.
+
 ### 복원 선행 게이트
 
 | 순서 | 확인 항목과 실행 명령 | 기대 결과 | 실제 결과 | 상태 |
@@ -145,7 +163,7 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 | R3 | 정책 안전성: `node --test --test-isolation=none test/policy-backup.test.mjs test/policy-restore.test.mjs` | 백업 변조·검증 누락·경로 이탈은 거부되고 격리 파일만 원자적으로 복원됨 | 비교 3/3, 복원 3/3 통과 | 통과 |
 | R4 | 메모 복원 단위시험: `node --test --test-isolation=none test/note-restore.test.mjs` | 검증된 B의 `sub`만 RPC 호출자 ID로 전달하고 A·잘못된 대상·소유자 불일치·DB 오류를 거부하며 동일 멱등 키 재시도를 재사용함 | API/RPC 경계 4/4 통과 | 통과 |
 | R4-DB | 빈 격리 PostgreSQL 16의 `byteback_restore_test`에서 `test/sql/note-restore.integration.sql` 실행 | 변조·삭제 복원, 다른 메모 보존, 감사 추가, 권한·무결성 실패 롤백 | 임시 로컬 DB에서 통과; Production SQL은 수동 적용됐으나 실제 복원은 미실행 | 통과(격리) |
-| R5 | 격리 HTTP·DB에서 `POST /api/notes/restore` 호출 | DB 반영과 사후 내용 해시가 일치하고 다른 메모·감사 기록은 불변 | Production RPC는 설치됐지만 검증된 B 백업 0건, 실제 HTTP 복원 및 심판 계약 미확인 | 미실행 |
+| R5 | 격리 HTTP·DB에서 `POST /api/notes/restore` 호출 | DB 반영과 사후 내용 해시가 일치하고 다른 메모·감사 기록은 불변 | Production RPC는 설치됐지만 검증된 B 백업 0건이며 실제 HTTP 복원은 미실행. 운영 측 확인상 심판은 Production 메모 복원을 실행하지 않음 | 미실행 |
 
 R1~R5 중 해당 실행 환경에 필요한 게이트가 실패하면 아래 회귀시험을 시작하지 않습니다. 특히 기준점·메모 백업의 해시 또는 검증 기록 불일치, 복원 대상 경로 이탈, 원자적 교체 실패, RPC 오류, 사후 SHA-256 불일치, 지정한 한 건 외의 변경은 즉시 중단 조건입니다. 실제 메모 복원을 검증해야 하는 실행에서는 R5가 통과하기 전 HTTP·DB 회귀시험을 실행하지 않습니다.
 
@@ -169,6 +187,6 @@ R1~R5 중 해당 실행 환경에 필요한 게이트가 실패하면 아래 회
 
 `npm.cmd run restore:test`로 ES256 judge JWT 검증, 정책 비교·시험 정책 복원, 메모 생성·복원 입력·응답 검증 및 JavaScript UTF-8 SHA-256 고정 벡터를 함께 확인합니다. 전체 명령은 이번 변경에서 재실행하지 않았고, 새 경로·기존 경로·인증·복원 입력·배포 신원의 관련 최소 시험은 2026-10-14에 14/14 통과했습니다. `npm.cmd run decider:test`, `npm.cmd run fixture:7`, `npm.cmd run detect:test`의 기존 결과는 각각 24/24, 정상 allow·복합 이상 step_up, 6/6 통과였습니다. 모두 로컬 fixture 결과이며 운영 심판 판정이 아닙니다.
 
-PostgreSQL 통합시험은 운영 DB가 아닌 빈 임시 PostgreSQL 16 클러스터의 `byteback_restore_test` DB에서 `psql -X -v ON_ERROR_STOP=1 -f test/sql/note-restore.integration.sql`로 실행합니다. DB 이름이 다르면 시험 파일이 즉시 중단합니다. 실제 실행에서 마이그레이션 적용, JS·PostgreSQL 해시 일치, 변조 메모 갱신, 삭제 메모 재생성, 타 소유자·미승인 백업 거부, 다른 메모 보존, 복원별 감사 한 줄 추가, 감사 추가 실패 시 전체 롤백을 확인했습니다.
+PostgreSQL 통합시험은 운영 DB가 아닌 빈 임시 PostgreSQL 16 클러스터의 `byteback_restore_test` DB에서 `psql -X -v ON_ERROR_STOP=1 -f test/sql/note-restore.integration.sql`로 실행합니다. DB 이름이 다르면 시험 파일이 즉시 중단합니다. 실제 실행에서 마이그레이션 적용, JS·PostgreSQL 해시 일치, 변조 메모 갱신, 삭제 메모 재생성, 타 소유자·미승인 백업 거부, 다른 메모 보존, 복원별 감사 한 줄 추가, 감사 추가 실패 시 전체 롤백을 확인했습니다. 2026-10-15에도 네트워크와 외부 포트가 없는 일회용 PostgreSQL 16 컨테이너에서 같은 시험이 통과했습니다.
 
-Production Supabase에는 `20261014000000`~`20261014000003` SQL을 수동 적용했지만 백업·감사 행은 0건이고 검증된 B 사전 백업도 없습니다. 실제 judge JWT 기반 HTTP 복원, Production DB 반영, 공식 심판 계약과 평가는 미확인입니다. `xdr:run`은 기존 `xdr/alerts.log`를 보존하기 위해 이번 회귀시험에서 실행하지 않았습니다.
+Production Supabase에는 `20261014000000`~`20261014000003` SQL을 수동 적용했지만 백업·감사 행은 0건이고 검증된 B 사전 백업도 없습니다. 실제 judge JWT 기반 HTTP 복원과 Production DB 반영은 미실행입니다. 운영 측 답변으로 심판이 README와 `restoreRoute`를 읽어 판정한다는 점은 확인됐지만, 이를 실제 복원 성공으로 기록하지 않습니다. `xdr:run`은 기존 `xdr/alerts.log`를 보존하기 위해 이번 회귀시험에서 실행하지 않았습니다.
