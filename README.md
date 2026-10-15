@@ -200,3 +200,11 @@ R1~R5 중 해당 실행 환경에 필요한 게이트가 실패하면 아래 회
 PostgreSQL 통합시험은 운영 DB가 아닌 빈 임시 PostgreSQL 16 클러스터의 `byteback_restore_test` DB에서 `psql -X -v ON_ERROR_STOP=1 -f test/sql/note-restore.integration.sql`로 실행합니다. DB 이름이 다르면 시험 파일이 즉시 중단합니다. 실제 실행에서 마이그레이션 적용, JS·PostgreSQL 해시 일치, 변조 메모 갱신, 삭제 메모 재생성, 타 소유자·미승인 백업 거부, 다른 메모 보존, 복원별 감사 한 줄 추가, 감사 추가 실패 시 전체 롤백을 확인했습니다. 2026-10-15에도 네트워크와 외부 포트가 없는 일회용 PostgreSQL 16 컨테이너에서 같은 시험이 통과했습니다.
 
 Production Supabase에는 `20261014000000`~`20261014000003` SQL을 수동 적용했지만 백업·감사 행은 0건이고 검증된 B 사전 백업도 없습니다. 실제 judge JWT 기반 HTTP 복원과 Production DB 반영은 미실행입니다. 운영 측 답변으로 심판이 README와 `restoreRoute`를 읽어 판정한다는 점은 확인됐지만, 이를 실제 복원 성공으로 기록하지 않습니다. `xdr:run`은 기존 `xdr/alerts.log`를 보존하기 위해 이번 회귀시험에서 실행하지 않았습니다.
+
+## 11단계 저장점: 나만의 접속 앱
+
+자료실은 `manifest.webmanifest`, 아이콘과 서비스 워커를 연결한 설치형 웹앱(PWA)이며 설치 여부와 기기 승인 여부를 별도로 표시합니다. 서비스 워커는 공개 정적 셸만 캐시하고 API·인증·보호 자료는 캐시하지 않습니다. 오프라인에서는 보호 자료를 숨기고 네트워크 연결 안내만 표시합니다.
+
+인증된 사용자는 기기 승인을 요청할 수 있고, 별도 관리자만 대기 요청을 승인·거부하거나 승인 기기를 취소할 수 있습니다. 서버는 승인 기록의 소유자, 상태, 서버 만료 시각과 HttpOnly·Secure·SameSite=Strict 쿠키 자격증명을 함께 검증합니다. 승인 전·거부·취소·만료·확인 불가 상태에서는 메모 CRUD와 세 복원 경로를 차단하며 모든 보호 API 응답은 `Cache-Control: private, no-store`를 사용합니다. HttpOnly 쿠키는 브라우저 JavaScript의 직접 탈취를 줄이지만 기기 하드웨어 공개키 증명은 아니므로, PWA 설치만으로 기기를 신뢰하지 않습니다.
+
+운영 적용 전 `supabase/migrations/20261015000000_device_registrations.sql`을 검토·적용하고 `DEVICE_APPROVAL_ADMIN_SUBJECTS`에 승인 담당자의 검증된 UUID를 서버 환경변수로 설정해야 합니다. 둘 중 하나라도 준비되지 않으면 승인 상태 확인과 보호 API 접근은 안전하게 실패합니다. 로컬 최소 확인은 `node --test test/device-approval.test.mjs test/pwa-assets.test.mjs`로 실행하며, Production DB 마이그레이션·실제 기기 승인·배포는 이 저장점에서 실행하지 않았습니다.

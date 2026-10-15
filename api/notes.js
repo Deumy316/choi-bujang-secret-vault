@@ -3,7 +3,13 @@ import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { createLoginVerifier } from '../src/verify-login.mjs';
 import { createResourceId, RESOURCE_TYPES } from '../src/resource-id.mjs';
+import { preventPrivateResponseCaching } from '../src/http-security.mjs';
 import { onlyOwnedNotes } from '../src/note-access.mjs';
+import {
+    createSupabaseDeviceStore,
+    DeviceApprovalError,
+    requireApprovedDevice
+} from '../src/device-approval.mjs';
 import {
     executeCreateNoteRpc,
     NoteCreateError,
@@ -41,6 +47,8 @@ function getSupabase() {
 }
 
 export default async function handler(req, res) {
+    preventPrivateResponseCaching(res);
+
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
         return res.status(500).json({
             error: 'Server configuration error'
@@ -66,6 +74,19 @@ export default async function handler(req, res) {
     }
 
     var supabase = getSupabase();
+
+    try {
+        await requireApprovedDevice({
+            store: createSupabaseDeviceStore(supabase),
+            login: login,
+            cookieHeader: req.headers.cookie
+        });
+    } catch (error) {
+        if (error instanceof DeviceApprovalError) {
+            return res.status(error.status).json({ error: error.code });
+        }
+        return res.status(503).json({ error: 'device_service_unavailable' });
+    }
 
     if (req.method === 'GET') {
         var result = await supabase

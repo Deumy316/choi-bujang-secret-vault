@@ -5,8 +5,21 @@ import { fixtureRequests } from '../scripts/fixture-7.mjs';
 import { decide } from './decider.mjs';
 
 export async function runAttackChecks(config) {
-  if (![5, 6, 7, 8, 9, 10].includes(config.step)) {
-    throw new Error('5~10단계 공격 점검은 해당 step에서 실행해야 합니다.');
+  if (![5, 6, 7, 8, 9, 10, 11].includes(config.step)) {
+    throw new Error('5~11단계 공격 점검은 해당 step에서 실행해야 합니다.');
+  }
+
+  if (config.step >= 11) {
+    const deviceRoutes = [
+      'GET /api/device/status',
+      'POST /api/device/request',
+      'POST /api/device/unregister',
+      'POST /api/device/admin',
+    ];
+
+    if (!deviceRoutes.every((route) => config.allowedRoutes?.includes(route))) {
+      throw new Error('11단계 기기 승인 API 경로 설정을 확인해 주세요.');
+    }
   }
 
   let app;

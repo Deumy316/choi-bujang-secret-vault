@@ -4,6 +4,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a28">
+  <meta name="application-name" content="최부장의 자료실">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <title>BYTE BACK | 최부장의 자료실</title>
 
   <style>
@@ -54,6 +60,72 @@
       border: 1px solid #51667c;
       border-radius: 14px;
       background: #162438;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin: 26px 0;
+    }
+
+    .status-card {
+      padding: 17px 19px;
+      border: 1px solid #51667c;
+      border-radius: 14px;
+      background: #162438;
+    }
+
+    .status-card h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .status-card p {
+      margin: 8px 0 0;
+      font-size: 14px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 5px 9px;
+      border: 1px solid #71869d;
+      border-radius: 999px;
+      color: #dbe9f8;
+      font-weight: 800;
+    }
+
+    .status-badge[data-state="approved"] {
+      border-color: #62c69b;
+      color: #91ebc4;
+    }
+
+    .status-badge[data-state="pending"] {
+      border-color: #e4b65e;
+      color: #ffd88c;
+    }
+
+    .status-badge[data-state="rejected"],
+    .status-badge[data-state="revoked"],
+    .status-badge[data-state="expired"] {
+      border-color: #d07384;
+      color: #ffb5c1;
+    }
+
+    .status-card button {
+      margin-top: 12px;
+      margin-right: 6px;
+      background: #8ad8df;
+      color: #10202b;
+    }
+
+    .network-warning {
+      margin: 20px 0;
+      padding: 14px 16px;
+      border: 1px solid #e4b65e;
+      border-radius: 12px;
+      background: #352b1b;
+      color: #ffd88c;
     }
 
     .field {
@@ -166,6 +238,25 @@
       로그인한 사용자는 가상 메모를 조회하고 추가·수정·삭제할 수 있습니다.
     </p>
 
+    <div id="networkWarning" class="network-warning" role="status" hidden>
+      오프라인 상태입니다. 보호 자료를 보려면 네트워크에 연결해 주세요.
+    </div>
+
+    <section class="status-grid" aria-label="앱 및 기기 상태">
+      <div class="status-card">
+        <h2>웹앱 설치 상태</h2>
+        <span id="installStatus" class="status-badge" data-state="unknown">브라우저에서 확인</span>
+        <p>PWA 설치 여부이며 기기 승인 여부와는 별개입니다.</p>
+      </div>
+      <div class="status-card">
+        <h2>기기 승인 상태</h2>
+        <span id="deviceApprovalStatus" class="status-badge" data-state="unknown">확인 불가</span>
+        <p id="deviceApprovalHelp">서버 승인 확인 기능이 연결되기 전에는 승인으로 표시하지 않습니다.</p>
+        <button id="deviceRequestButton" type="button" hidden>이 기기 승인 요청</button>
+        <button id="deviceUnregisterButton" type="button" hidden>기기 등록 해제</button>
+      </div>
+    </section>
+
     <section class="box">
       <h2>로그인</h2>
 
@@ -232,52 +323,35 @@
     var noteStatus = document.querySelector('#noteStatus');
 
     var list = document.querySelector('#notes');
-
-    var SESSION_KEY = 'byteback_session';
+    var networkWarning = document.querySelector('#networkWarning');
+    var installStatus = document.querySelector('#installStatus');
+    var deviceApprovalStatus = document.querySelector('#deviceApprovalStatus');
+    var deviceApprovalHelp = document.querySelector('#deviceApprovalHelp');
+    var deviceRequestButton = document.querySelector('#deviceRequestButton');
+    var deviceUnregisterButton = document.querySelector('#deviceUnregisterButton');
+    var currentSession = null;
+    var currentDeviceState = 'unknown';
 
     function saveSession(accessToken, email) {
-      sessionStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({
-          access_token: accessToken,
-          user: {
-            email: email
-          }
-        })
-      );
+      currentSession = {
+        access_token: accessToken,
+        user: { email: email }
+      };
     }
 
     function clearSession() {
-      sessionStorage.removeItem(SESSION_KEY);
+      currentSession = null;
     }
 
     async function getSession() {
-      var saved = sessionStorage.getItem(SESSION_KEY);
-
-      if (!saved) {
-        return null;
-      }
-
-      try {
-        var session = JSON.parse(saved);
-
-        if (
-          !session ||
-          typeof session.access_token !== 'string' ||
-          !session.access_token
-        ) {
-          clearSession();
-          return null;
-        }
-
-        return session;
-      } catch (error) {
-        clearSession();
-        return null;
-      }
+      return currentSession;
     }
 
-    async function apiFetch(url, options) {
+    async function authenticatedFetch(url, options) {
+      if (!navigator.onLine) {
+        throw new Error('네트워크 연결이 필요합니다.');
+      }
+
       var session = await getSession();
 
       if (!session) {
@@ -309,10 +383,20 @@
       return data;
     }
 
+    async function apiFetch(url, options) {
+      if (currentDeviceState !== 'approved') {
+        throw new Error('승인된 기기에서만 보호 자료를 이용할 수 있습니다.');
+      }
+      return authenticatedFetch(url, options);
+    }
+
     function showLoggedOut(message) {
       loginForm.hidden = false;
       logoutButton.hidden = true;
       createBox.hidden = true;
+      deviceRequestButton.hidden = true;
+      deviceUnregisterButton.hidden = true;
+      showDeviceApproval('unknown');
 
       authStatus.classList.remove('error');
       authStatus.textContent =
@@ -322,10 +406,75 @@
     function showLoggedIn(user) {
       loginForm.hidden = true;
       logoutButton.hidden = false;
-      createBox.hidden = false;
+      createBox.hidden = true;
 
       authStatus.classList.remove('error');
       authStatus.textContent = '로그인됨: ' + user.email;
+    }
+
+    function updateInstallStatus() {
+      var installed = window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+      installStatus.dataset.state = installed ? 'approved' : 'unknown';
+      installStatus.textContent = installed ? '설치됨' : '브라우저에서 설치 가능';
+    }
+
+    function showDeviceApproval(state) {
+      var labels = {
+        approved: '승인됨',
+        pending: '승인 대기',
+        rejected: '승인 거부',
+        revoked: '등록 해제',
+        expired: '승인 만료',
+        unknown: '확인 불가'
+      };
+      var safeState = Object.prototype.hasOwnProperty.call(labels, state) ? state : 'unknown';
+      currentDeviceState = safeState;
+      deviceApprovalStatus.dataset.state = safeState;
+      deviceApprovalStatus.textContent = labels[safeState];
+      deviceApprovalHelp.textContent = safeState === 'unknown'
+        ? '서버에서 현재 기기의 등록 상태를 확인하지 못했습니다.'
+        : safeState === 'approved'
+          ? '서버가 승인 기록과 이 브라우저의 HttpOnly 기기 자격증명을 확인했습니다.'
+          : '서버가 확인한 기기 등록 처리 상태입니다.';
+    }
+
+    async function refreshDeviceApprovalStatus() {
+      var session = await getSession();
+      if (!session || !navigator.onLine) {
+        showDeviceApproval('unknown');
+        deviceRequestButton.hidden = true;
+        deviceUnregisterButton.hidden = true;
+        createBox.hidden = true;
+        return;
+      }
+      try {
+        var result = await authenticatedFetch('/api/device/status', { method: 'GET' });
+        showDeviceApproval(result.status);
+        deviceRequestButton.hidden = ['pending', 'approved'].includes(currentDeviceState);
+        deviceUnregisterButton.hidden = !['pending', 'approved'].includes(currentDeviceState);
+        createBox.hidden = currentDeviceState !== 'approved';
+      } catch (error) {
+        showDeviceApproval('unknown');
+        deviceRequestButton.hidden = false;
+        deviceUnregisterButton.hidden = true;
+        createBox.hidden = true;
+      }
+    }
+
+    function showOfflineNotes() {
+      var offlineItem = document.createElement('li');
+      offlineItem.textContent = '보호 자료는 오프라인에서 표시하지 않습니다.';
+      list.replaceChildren(offlineItem);
+    }
+
+    function updateNetworkStatus() {
+      var offline = !navigator.onLine;
+      networkWarning.hidden = !offline;
+      if (offline) {
+        createBox.hidden = true;
+        showOfflineNotes();
+      }
     }
 
     async function refreshAuthState() {
@@ -373,6 +522,7 @@
         passwordInput.value = '';
 
         showLoggedIn(data.user);
+        await refreshDeviceApprovalStatus();
         await loadNotes();
       } catch (error) {
         authStatus.classList.add('error');
@@ -386,6 +536,33 @@
 
       showLoggedOut('로그아웃하였습니다.');
       await loadNotes();
+    });
+
+    deviceRequestButton.addEventListener('click', async function () {
+      deviceRequestButton.disabled = true;
+      try {
+        await authenticatedFetch('/api/device/request', { method: 'POST' });
+        await refreshDeviceApprovalStatus();
+        await loadNotes();
+      } catch (error) {
+        showDeviceApproval('unknown');
+        deviceApprovalHelp.textContent = '승인 요청을 접수하지 못했습니다.';
+      } finally {
+        deviceRequestButton.disabled = false;
+      }
+    });
+
+    deviceUnregisterButton.addEventListener('click', async function () {
+      deviceUnregisterButton.disabled = true;
+      try {
+        await authenticatedFetch('/api/device/unregister', { method: 'POST' });
+        await refreshDeviceApprovalStatus();
+        await loadNotes();
+      } catch (error) {
+        deviceApprovalHelp.textContent = '기기 등록을 해제하지 못했습니다.';
+      } finally {
+        deviceUnregisterButton.disabled = false;
+      }
     });
 
     createForm.addEventListener('submit', async function (event) {
@@ -464,6 +641,11 @@
     }
 
     async function loadNotes() {
+      if (!navigator.onLine) {
+        showOfflineNotes();
+        return;
+      }
+
       var session = await getSession();
 
       if (!session) {
@@ -472,6 +654,13 @@
           '로그인하면 가상 메모를 볼 수 있습니다.';
 
         list.replaceChildren(loggedOutItem);
+        return;
+      }
+
+      if (currentDeviceState !== 'approved') {
+        var approvalItem = document.createElement('li');
+        approvalItem.textContent = '서버가 승인한 기기에서만 보호 자료를 표시합니다.';
+        list.replaceChildren(approvalItem);
         return;
       }
 
@@ -534,7 +723,26 @@
       }
     }
 
+    window.addEventListener('offline', updateNetworkStatus);
+    window.addEventListener('online', async function () {
+      updateNetworkStatus();
+      var session = await getSession();
+      if (session) {
+        await refreshDeviceApprovalStatus();
+        await loadNotes();
+      }
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function () {
+        // 설치 지원 실패는 인증이나 보호 API의 동작을 바꾸지 않습니다.
+      });
+    }
+
+    updateInstallStatus();
     await refreshAuthState();
+    await refreshDeviceApprovalStatus();
+    updateNetworkStatus();
     await loadNotes();
   </script>
 </body>

@@ -2,10 +2,16 @@ import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'node:module';
 import { createLoginVerifier } from '../../src/verify-login.mjs';
 import { createResourceId, RESOURCE_TYPES } from '../../src/resource-id.mjs';
+import { preventPrivateResponseCaching } from '../../src/http-security.mjs';
 import {
     isInstructorNoticeResourceId,
     isOwner
 } from '../../src/note-access.mjs';
+import {
+    createSupabaseDeviceStore,
+    DeviceApprovalError,
+    requireApprovedDevice
+} from '../../src/device-approval.mjs';
 
 var require = createRequire(import.meta.url);
 var config = require('../../aleph.config.json');
@@ -55,6 +61,8 @@ async function findNote(supabase, noteId) {
 }
 
 export default async function handler(req, res) {
+    preventPrivateResponseCaching(res);
+
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
         return res.status(500).json({
             error: 'Server configuration error'
@@ -101,6 +109,20 @@ export default async function handler(req, res) {
     }
 
     var supabase = getSupabase();
+
+    try {
+        await requireApprovedDevice({
+            store: createSupabaseDeviceStore(supabase),
+            login: login,
+            cookieHeader: req.headers.cookie
+        });
+    } catch (error) {
+        if (error instanceof DeviceApprovalError) {
+            return res.status(error.status).json({ error: error.code });
+        }
+        return res.status(503).json({ error: 'device_service_unavailable' });
+    }
+
     var existingNote;
 
     try {

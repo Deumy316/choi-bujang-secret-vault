@@ -1,5 +1,5 @@
 {
-  "step": 10,
+  "step": 11,
   "repoUrl": "https://github.com/Deumy316/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-three-cyan.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",
@@ -11,6 +11,10 @@
   },
   "allowedRoutes": [
     "POST /api/auth/login",
+    "GET /api/device/status",
+    "POST /api/device/request",
+    "POST /api/device/unregister",
+    "POST /api/device/admin",
     "GET /api/notes",
     "POST /api/notes",
     "GET /api/notes/:id",
