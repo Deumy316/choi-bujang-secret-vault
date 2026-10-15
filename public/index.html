@@ -281,6 +281,13 @@
       </div>
     </section>
 
+    <section id="deviceAdminBox" class="box" hidden>
+      <h2>기기 승인 관리</h2>
+      <p>서버가 확인한 유효한 승인 대기 요청만 표시합니다. 사용자 표시는 UUID 앞 8자리입니다.</p>
+      <div id="deviceAdminStatus" aria-live="polite"></div>
+      <ul id="deviceAdminRequests" aria-live="polite"></ul>
+    </section>
+
     <section id="createBox" class="box" hidden>
       <h2>새 메모 추가</h2>
 
@@ -329,6 +336,9 @@
     var deviceApprovalHelp = document.querySelector('#deviceApprovalHelp');
     var deviceRequestButton = document.querySelector('#deviceRequestButton');
     var deviceUnregisterButton = document.querySelector('#deviceUnregisterButton');
+    var deviceAdminBox = document.querySelector('#deviceAdminBox');
+    var deviceAdminStatus = document.querySelector('#deviceAdminStatus');
+    var deviceAdminRequests = document.querySelector('#deviceAdminRequests');
     var currentSession = null;
     var currentDeviceState = 'unknown';
 
@@ -377,7 +387,9 @@
       });
 
       if (!response.ok) {
-        throw new Error(data.error || '요청을 처리하지 못했습니다.');
+        var requestError = new Error(data.error || '요청을 처리하지 못했습니다.');
+        requestError.status = response.status;
+        throw requestError;
       }
 
       return data;
@@ -396,11 +408,79 @@
       createBox.hidden = true;
       deviceRequestButton.hidden = true;
       deviceUnregisterButton.hidden = true;
+      hideDeviceAdmin();
       showDeviceApproval('unknown');
 
       authStatus.classList.remove('error');
       authStatus.textContent =
         message || '로그인하지 않은 상태입니다.';
+    }
+
+    function hideDeviceAdmin() {
+      deviceAdminBox.hidden = true;
+      deviceAdminStatus.textContent = '';
+      deviceAdminRequests.replaceChildren();
+    }
+
+    function formatRequestedAt(value) {
+      var requestedAt = new Date(value);
+      return Number.isNaN(requestedAt.getTime()) ? '확인 불가' : requestedAt.toLocaleString('ko-KR');
+    }
+
+    async function approveDeviceRegistration(registrationId, button) {
+      button.disabled = true;
+      deviceAdminStatus.textContent = '승인 처리 중입니다.';
+      try {
+        var result = await authenticatedFetch('/api/device/admin', {
+          method: 'POST',
+          body: JSON.stringify({ registrationId: registrationId, action: 'approve' })
+        });
+        if (result.status !== 'approved') {
+          throw new Error('승인 결과를 확인하지 못했습니다.');
+        }
+        deviceAdminStatus.textContent = '기기 요청을 승인했습니다.';
+        await refreshDeviceAdminRequests();
+      } catch (error) {
+        deviceAdminStatus.textContent = '승인 실패: ' + error.message;
+        button.disabled = false;
+      }
+    }
+
+    async function refreshDeviceAdminRequests() {
+      var session = await getSession();
+      if (!session || !navigator.onLine) {
+        hideDeviceAdmin();
+        return;
+      }
+      try {
+        var result = await authenticatedFetch('/api/device/admin', { method: 'GET' });
+        if (!Array.isArray(result.requests)) {
+          throw new Error('승인 요청 형식이 올바르지 않습니다.');
+        }
+        var items = result.requests.map(function (request) {
+          var item = document.createElement('li');
+          var description = document.createElement('span');
+          description.textContent = '사용자 ' + request.userLabel
+            + ' · 요청 ' + formatRequestedAt(request.requestedAt);
+          var approveButton = document.createElement('button');
+          approveButton.type = 'button';
+          approveButton.textContent = '승인';
+          approveButton.addEventListener('click', function () {
+            approveDeviceRegistration(request.registrationId, approveButton);
+          });
+          item.append(description, approveButton);
+          return item;
+        });
+        if (items.length === 0) {
+          var emptyItem = document.createElement('li');
+          emptyItem.textContent = '승인 대기 요청이 없습니다.';
+          items.push(emptyItem);
+        }
+        deviceAdminRequests.replaceChildren(...items);
+        deviceAdminBox.hidden = false;
+      } catch (error) {
+        hideDeviceAdmin();
+      }
     }
 
     function showLoggedIn(user) {
@@ -523,6 +603,7 @@
 
         showLoggedIn(data.user);
         await refreshDeviceApprovalStatus();
+        await refreshDeviceAdminRequests();
         await loadNotes();
       } catch (error) {
         authStatus.classList.add('error');
@@ -729,6 +810,7 @@
       var session = await getSession();
       if (session) {
         await refreshDeviceApprovalStatus();
+        await refreshDeviceAdminRequests();
         await loadNotes();
       }
     });

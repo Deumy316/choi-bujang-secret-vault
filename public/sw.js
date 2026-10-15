@@ -1,4 +1,4 @@
-const CACHE_NAME = 'byte-back-public-shell-v1';
+const CACHE_NAME = 'byte-back-public-shell-v2';
 const PUBLIC_SHELL = ['/', '/manifest.webmanifest', '/icon.svg'];
 const PUBLIC_PATHS = new Set(PUBLIC_SHELL);
 

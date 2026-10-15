@@ -62,6 +62,14 @@ export function createSupabaseDeviceStore(supabase) {
       if (result.error) fail('device_store_unavailable');
       return result.data;
     },
+    async listPending() {
+      const result = await supabase.from('device_registrations')
+        .select('registration_id, user_id, status, requested_at, expires_at')
+        .eq('status', 'pending').gt('expires_at', new Date().toISOString())
+        .order('requested_at', { ascending: true }).limit(50);
+      if (result.error || !Array.isArray(result.data)) fail('device_store_unavailable');
+      return result.data;
+    },
     async create(record) {
       const result = await supabase.from('device_registrations').insert(record)
         .select('registration_id, user_id, token_hash, status, expires_at').single();
@@ -157,11 +165,32 @@ export function parseAdminSubjects(value) {
   return Object.freeze([...new Set(subjects)]);
 }
 
-export async function decideDeviceApproval({ store, login, adminSubjects,
-  registrationId, action }) {
+function requireDeviceAdmin(login, adminSubjects) {
   if (!validLogin(login)) fail('login_required', 401);
   if (!adminSubjects.length) fail('device_admin_unavailable');
   if (!adminSubjects.includes(login.userId)) fail('device_admin_required', 403);
+}
+
+export async function listPendingDeviceApprovals({ store, login, adminSubjects }) {
+  requireDeviceAdmin(login, adminSubjects);
+  if (typeof store?.listPending !== 'function') fail('device_store_unavailable');
+  const records = await store.listPending();
+  if (!records.every((record) => UUID.test(record?.registration_id ?? '')
+      && UUID.test(record?.user_id ?? '') && record.status === 'pending'
+      && Number.isFinite(Date.parse(record.requested_at)) && hasValidExpiry(record))) {
+    fail('device_store_unavailable');
+  }
+  return Object.freeze(records.map((record) => Object.freeze({
+    registrationId: record.registration_id,
+    userLabel: record.user_id.slice(0, 8),
+    requestedAt: record.requested_at,
+    expiresAt: record.expires_at,
+  })));
+}
+
+export async function decideDeviceApproval({ store, login, adminSubjects,
+  registrationId, action }) {
+  requireDeviceAdmin(login, adminSubjects);
   if (!UUID.test(registrationId ?? '') || !['approve', 'reject', 'revoke'].includes(action)) {
     fail('invalid_device_decision', 400);
   }

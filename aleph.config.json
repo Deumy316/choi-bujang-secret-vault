@@ -14,6 +14,7 @@
     "GET /api/device/status",
     "POST /api/device/request",
     "POST /api/device/unregister",
+    "GET /api/device/admin",
     "POST /api/device/admin",
     "GET /api/notes",
     "POST /api/notes",

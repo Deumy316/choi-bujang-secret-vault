@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   decideDeviceApproval,
   getDeviceApprovalStatus,
+  listPendingDeviceApprovals,
   requestDeviceApproval,
   requireApprovedDevice,
   unregisterDevice,
@@ -28,11 +29,16 @@ function memoryStore() {
     async create(record) {
       const created = {
         registration_id: randomUUID(),
+        requested_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
         ...record,
       };
       records.push(created);
       return created;
+    },
+    async listPending() {
+      return records.filter((record) => record.status === 'pending'
+        && Date.parse(record.expires_at) > Date.now());
     },
     async update(registrationId, values, expectedStatuses) {
       updates.push([...expectedStatuses]);
@@ -65,12 +71,29 @@ test('요청자는 대기만 만들고 별도 관리자가 승인한 기기만 �
   const registrationId = (await getDeviceApprovalStatus({ store, login, cookieHeader }))
     .registrationId;
   await assert.rejects(
+    listPendingDeviceApprovals({ store, login, adminSubjects: [ADMIN] }),
+    (error) => error.code === 'device_admin_required' && error.status === 403,
+  );
+  const pending = await listPendingDeviceApprovals({
+    store, login: { userId: ADMIN }, adminSubjects: [ADMIN],
+  });
+  assert.deepEqual(pending, [{
+    registrationId,
+    userLabel: USER.slice(0, 8),
+    requestedAt: store.records[0].requested_at,
+    expiresAt: store.records[0].expires_at,
+  }]);
+  assert.doesNotMatch(JSON.stringify(pending), /token_hash|11111111-1111/u);
+  await assert.rejects(
     decideDeviceApproval({ store, login, adminSubjects: [USER], registrationId,
       action: 'approve' }),
     (error) => error.code === 'device_self_approval_forbidden' && error.status === 403,
   );
   await decideDeviceApproval({ store, login: { userId: ADMIN }, adminSubjects: [ADMIN],
     registrationId, action: 'approve' });
+  assert.deepEqual(await listPendingDeviceApprovals({
+    store, login: { userId: ADMIN }, adminSubjects: [ADMIN],
+  }), []);
   assert.equal((await requireApprovedDevice({ store, login, cookieHeader })).status, 'approved');
 
   await unregisterDevice({ store, login, cookieHeader });
@@ -170,4 +193,9 @@ test('보호 API와 DB 초안은 서버 승인 게이트와 최소 권한을 유
   const approval = await readFile('src/device-approval.mjs', 'utf8');
   assert.match(approval, /\.in\('status', expectedStatuses\)/u);
   assert.match(approval, /\.gt\('expires_at'/u);
+
+  const adminApi = await readFile('api/device/admin.js', 'utf8');
+  assert.match(adminApi, /req\.method === 'GET'/u);
+  assert.match(adminApi, /listPendingDeviceApprovals/u);
+  assert.match(adminApi, /preventPrivateResponseCaching/u);
 });
