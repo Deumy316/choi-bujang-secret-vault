@@ -111,23 +111,17 @@ export async function runAttackChecks(config) {
     {
       attackId: 'public_static_note_read',
       expected: '공개 data.json에서 가상 메모를 읽지 못함',
-      observed: staticNotesVisible
-        ? '공개 data.json에 가상 메모가 남아 있음'
-        : `공개 data.json에서 가상 메모가 확인되지 않음 (HTTP ${staticResponse.status})`,
+      observed: `HTTP ${staticResponse.status}`,
     },
     {
       attackId: 'anonymous_api_note_read',
       expected: '로그인 없는 자료 API 요청을 401 또는 403 JSON 오류로 거부',
-      observed: anonymousBlocked
-        ? `로그인 없는 자료 API 요청이 JSON 오류로 차단됨 (HTTP ${apiResponse.status})`
-        : `로그인 없는 자료 API 요청 차단 조건을 만족하지 못함 (HTTP ${apiResponse.status})`,
+      observed: `HTTP ${apiResponse.status}`,
     },
     {
       attackId: 'deployment_identity_available',
       expected: `배포 주소의 /aleph.json에서 ${config.step}단계 식별 정보를 확인`,
-      observed: identityAvailable
-        ? `/aleph.json에서 ${config.step}단계 배포 식별 정보를 확인함`
-        : `/aleph.json의 ${config.step}단계 배포 식별 정보를 확인하지 못함 (HTTP ${identityResponse.status})`,
+      observed: `HTTP ${identityResponse.status}`,
     },
   ];
 
@@ -148,9 +142,7 @@ export async function runAttackChecks(config) {
     attempts.push({
       attackId: 'unregistered_device_read',
       expected: '미등록 기기의 자료실 읽기 요청을 device_not_registered로 거부',
-      observed: unregisteredDeviceBlocked
-        ? '미등록 기기의 가상 요청을 device_not_registered로 거부함'
-        : '미등록 기기의 가상 요청이 요구한 판정으로 거부되지 않음',
+      observed: 'not_run',
     });
   }
 
@@ -173,9 +165,7 @@ export async function runAttackChecks(config) {
     attempts.push({
       attackId: 'unusual_access_step_up',
       expected: '정상 가상 요청은 allow, 복합 이상은 step_up, 추가 확인한 새 요청은 allow',
-      observed: expectedDecisions
-        ? '정상 allow, 복합 이상 step_up, 추가 확인한 새 요청 allow를 확인함'
-        : `정상 ${normalResponse?.decision}, 복합 이상 ${suspiciousResponse?.decision}, 추가 확인 ${verifiedResponse?.decision}`,
+      observed: 'not_run',
     });
   }
 
