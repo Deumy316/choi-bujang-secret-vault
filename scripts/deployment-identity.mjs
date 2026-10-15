@@ -8,6 +8,8 @@ export function deploymentIdentity(env, config) {
   const repo = env.VERCEL_GIT_REPO_SLUG;
   const commit = env.VERCEL_GIT_COMMIT_SHA;
   const host = env.VERCEL_URL;
+  let publicApp;
+  try { publicApp = new URL(config.publicAppUrl); } catch {}
 
   if (
     env.VERCEL_GIT_PROVIDER !== 'github'
@@ -18,6 +20,8 @@ export function deploymentIdentity(env, config) {
     || repo.toLowerCase().endsWith('.git')
     || !SHA.test(commit || '')
     || !HOST.test(host || '')
+    || config.publicAppUrl !== publicApp?.origin
+    || !HOST.test(publicApp?.hostname || '')
     || !Number.isInteger(config.step)
     || config.step < 1
     || typeof config.judgeIssuer !== 'string'
@@ -38,7 +42,7 @@ export function deploymentIdentity(env, config) {
     step: config.step,
     repoUrl: `https://github.com/${owner.toLowerCase()}/${repo.toLowerCase()}`,
     commit: commit.toLowerCase(),
-    publicAppUrl: `https://${host.toLowerCase()}`,
+    publicAppUrl: config.publicAppUrl,
     judgeIssuer: config.judgeIssuer,
     sampleMarker: config.sampleMarker,
     allowedRoutes: config.allowedRoutes,

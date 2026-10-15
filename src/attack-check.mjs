@@ -84,7 +84,7 @@ export async function runAttackChecks(config) {
       identityAvailable =
         identity?.step === config.step &&
         typeof identity?.repoUrl === 'string' &&
-        typeof identity?.publicAppUrl === 'string';
+        identity?.publicAppUrl === config.publicAppUrl;
     } catch {
       identityAvailable = false;
     }

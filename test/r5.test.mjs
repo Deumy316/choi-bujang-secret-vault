@@ -25,13 +25,13 @@ const env = {
   VERCEL_URL: 'student-defense-123.vercel.app',
 };
 
-test('build identity uses current Vercel Git and deployment metadata', () => {
+test('build identity uses current Vercel Git metadata and canonical app URL', () => {
   assert.deepEqual(deploymentIdentity(env, config), {
     schema: 'aleph.defense.deployment.v1',
     step: 10,
     repoUrl: 'https://github.com/student-a/aleph-defense',
     commit: 'a'.repeat(40),
-    publicAppUrl: 'https://student-defense-123.vercel.app',
+    publicAppUrl: config.publicAppUrl,
     judgeIssuer: config.judgeIssuer,
     sampleMarker: config.sampleMarker,
     allowedRoutes: config.allowedRoutes,
@@ -41,12 +41,14 @@ test('build identity uses current Vercel Git and deployment metadata', () => {
   });
   assert.throws(() => deploymentIdentity({ ...env, VERCEL_GIT_PROVIDER: undefined }, config));
   assert.throws(() => deploymentIdentity({ ...env, VERCEL_GIT_COMMIT_SHA: 'short' }, config));
+  assert.throws(() => deploymentIdentity(env, { ...config, publicAppUrl: 'https://wrong.example' }));
   assert.throws(() => deploymentIdentity(env, { ...config, restoreRoute: '/wrong' }));
 });
 
 test('current attack checks use public endpoints without credentials', async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
+  let identityPublicAppUrl = config.publicAppUrl;
   try {
     globalThis.fetch = async (url, init) => {
       const requestUrl = String(url);
@@ -59,7 +61,7 @@ test('current attack checks use public endpoints without credentials', async () 
         return Response.json({
           step: 10,
           repoUrl: 'https://github.com/student-a/aleph-defense',
-          publicAppUrl: config.publicAppUrl,
+          publicAppUrl: identityPublicAppUrl,
         });
       }
       if (requestUrl.endsWith('/api/restore/00000000-0000-4000-8000-000000000000')) {
@@ -81,6 +83,10 @@ test('current attack checks use public endpoints without credentials', async () 
     assert.match(results[1].observed, /차단됨/u);
     assert.match(results[2].observed, /10단계/u);
     assert.match(results[5].observed, /HTTP 401/u);
+
+    identityPublicAppUrl = 'https://different-deployment.vercel.app';
+    const mismatchedIdentityResults = await runAttackChecks(config);
+    assert.match(mismatchedIdentityResults[2].observed, /확인하지 못함/u);
   } finally {
     globalThis.fetch = originalFetch;
   }
