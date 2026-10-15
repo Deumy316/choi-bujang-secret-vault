@@ -208,3 +208,5 @@ Production Supabase에는 `20261014000000`~`20261014000003` SQL을 수동 적용
 인증된 사용자는 기기 승인을 요청할 수 있고, 별도 관리자만 대기 요청을 승인·거부하거나 승인 기기를 취소할 수 있습니다. 서버는 승인 기록의 소유자, 상태, 서버 만료 시각과 HttpOnly·Secure·SameSite=Strict 쿠키 자격증명을 함께 검증합니다. 승인 전·거부·취소·만료·확인 불가 상태에서는 메모 CRUD와 세 복원 경로를 차단하며 모든 보호 API 응답은 `Cache-Control: private, no-store`를 사용합니다. HttpOnly 쿠키는 브라우저 JavaScript의 직접 탈취를 줄이지만 기기 하드웨어 공개키 증명은 아니므로, PWA 설치만으로 기기를 신뢰하지 않습니다.
 
 운영 적용 전 `supabase/migrations/20261015000000_device_registrations.sql`을 검토·적용하고 `DEVICE_APPROVAL_ADMIN_SUBJECTS`에 승인 담당자의 검증된 UUID를 서버 환경변수로 설정해야 합니다. 둘 중 하나라도 준비되지 않으면 승인 상태 확인과 보호 API 접근은 안전하게 실패합니다. 로컬 최소 확인은 `node --test test/device-approval.test.mjs test/pwa-assets.test.mjs`로 실행하며, Production DB 마이그레이션·실제 기기 승인·배포는 이 저장점에서 실행하지 않았습니다.
+
+일반 사용자와 승인 관리자는 서로 다른 브라우저 프로필을 사용해야 합니다. 같은 호스트의 `__Host-byteback_device` 쿠키는 프로필 안에서 계정별로 분리되지 않으므로, 한 프로필에서 두 계정이 각각 기기 요청을 만들면 나중 요청의 자격증명이 앞선 요청을 덮어쓸 수 있습니다. 일반 사용자 화면의 현재 요청 ID와 관리자 대기 목록의 요청 ID가 정확히 같을 때만 승인하며, ID가 보이지 않거나 다르면 승인하지 않습니다. 요청 ID 자체는 인증 수단이 아니며 JWT·HttpOnly 쿠키·서버 등록 기록 검증은 그대로 적용됩니다.

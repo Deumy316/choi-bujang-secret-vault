@@ -14,6 +14,7 @@ import { preventPrivateResponseCaching } from '../src/http-security.mjs';
 
 const USER = '11111111-1111-4111-8111-111111111111';
 const ADMIN = '22222222-2222-4222-8222-222222222222';
+const OTHER = '33333333-3333-4333-8333-333333333333';
 
 function memoryStore() {
   const records = [];
@@ -62,7 +63,14 @@ test('요청자는 대기만 만들고 별도 관리자가 승인한 기기만 �
   assert.doesNotMatch(JSON.stringify(request), /token_hash/u);
 
   const cookieHeader = request.cookie.split(';')[0];
-  assert.equal((await getDeviceApprovalStatus({ store, login, cookieHeader })).status, 'pending');
+  const matchedStatus = await getDeviceApprovalStatus({ store, login, cookieHeader });
+  assert.equal(matchedStatus.status, 'pending');
+  assert.equal(matchedStatus.registrationId, store.records[0].registration_id);
+  assert.doesNotMatch(JSON.stringify(await getDeviceApprovalStatus({ store, login })),
+    /registrationId/u);
+  assert.doesNotMatch(JSON.stringify(await getDeviceApprovalStatus({
+    store, login: { userId: OTHER }, cookieHeader,
+  })), /registrationId/u);
   await assert.rejects(
     requireApprovedDevice({ store, login, cookieHeader }),
     (error) => error.code === 'device_not_approved' && error.status === 403,
@@ -170,6 +178,10 @@ test('보호 API와 DB 초안은 서버 승인 게이트와 최소 권한을 유
   ]);
   assert.ok(handlers.every((source) => source.includes('requireApprovedDevice')));
   assert.ok(handlers.every((source) => source.includes('preventPrivateResponseCaching')));
+
+  const statusApi = await readFile('api/device/status.js', 'utf8');
+  assert.match(statusApi, /if \(result\.registrationId\) response\.registrationId/u);
+  assert.match(statusApi, /preventPrivateResponseCaching/u);
 
   const headers = new Map();
   preventPrivateResponseCaching({ setHeader(name, value) { headers.set(name, value); } });

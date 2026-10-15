@@ -252,6 +252,7 @@
         <h2>기기 승인 상태</h2>
         <span id="deviceApprovalStatus" class="status-badge" data-state="unknown">확인 불가</span>
         <p id="deviceApprovalHelp">서버 승인 확인 기능이 연결되기 전에는 승인으로 표시하지 않습니다.</p>
+        <p id="deviceRegistrationLine" hidden>현재 요청 ID: <code id="deviceRegistrationId"></code></p>
         <button id="deviceRequestButton" type="button" hidden>이 기기 승인 요청</button>
         <button id="deviceUnregisterButton" type="button" hidden>기기 등록 해제</button>
       </div>
@@ -334,6 +335,8 @@
     var installStatus = document.querySelector('#installStatus');
     var deviceApprovalStatus = document.querySelector('#deviceApprovalStatus');
     var deviceApprovalHelp = document.querySelector('#deviceApprovalHelp');
+    var deviceRegistrationLine = document.querySelector('#deviceRegistrationLine');
+    var deviceRegistrationId = document.querySelector('#deviceRegistrationId');
     var deviceRequestButton = document.querySelector('#deviceRequestButton');
     var deviceUnregisterButton = document.querySelector('#deviceUnregisterButton');
     var deviceAdminBox = document.querySelector('#deviceAdminBox');
@@ -462,13 +465,15 @@
           var description = document.createElement('span');
           description.textContent = '사용자 ' + request.userLabel
             + ' · 요청 ' + formatRequestedAt(request.requestedAt);
+          var identifier = document.createElement('code');
+          identifier.textContent = ' 요청 ID: ' + request.registrationId;
           var approveButton = document.createElement('button');
           approveButton.type = 'button';
           approveButton.textContent = '승인';
           approveButton.addEventListener('click', function () {
             approveDeviceRegistration(request.registrationId, approveButton);
           });
-          item.append(description, approveButton);
+          item.append(description, identifier, approveButton);
           return item;
         });
         if (items.length === 0) {
@@ -499,7 +504,7 @@
       installStatus.textContent = installed ? '설치됨' : '브라우저에서 설치 가능';
     }
 
-    function showDeviceApproval(state) {
+    function showDeviceApproval(state, registrationId) {
       var labels = {
         approved: '승인됨',
         pending: '승인 대기',
@@ -512,6 +517,9 @@
       currentDeviceState = safeState;
       deviceApprovalStatus.dataset.state = safeState;
       deviceApprovalStatus.textContent = labels[safeState];
+      var hasRegistration = typeof registrationId === 'string' && registrationId.length > 0;
+      deviceRegistrationId.textContent = hasRegistration ? registrationId : '';
+      deviceRegistrationLine.hidden = !hasRegistration;
       deviceApprovalHelp.textContent = safeState === 'unknown'
         ? '서버에서 현재 기기의 등록 상태를 확인하지 못했습니다.'
         : safeState === 'approved'
@@ -530,7 +538,7 @@
       }
       try {
         var result = await authenticatedFetch('/api/device/status', { method: 'GET' });
-        showDeviceApproval(result.status);
+        showDeviceApproval(result.status, result.registrationId);
         deviceRequestButton.hidden = ['pending', 'approved'].includes(currentDeviceState);
         deviceUnregisterButton.hidden = !['pending', 'approved'].includes(currentDeviceState);
         createBox.hidden = currentDeviceState !== 'approved';
