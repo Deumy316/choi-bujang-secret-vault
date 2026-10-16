@@ -2,6 +2,10 @@
 // Never return tokens, private keys, real names, or note bodies.
 
 export async function runAttackChecks(config) {
+  const staticNoteAttackId = 'anonymous_note_read';
+  const anonymousApiAttackId = 'anonymous_api_note_read';
+  const deploymentIdentityAttackId = 'deployment_identity_available';
+
   if (![5, 6, 7, 8, 9, 10, 11, 12].includes(config.step)) {
     throw new Error('5~12단계 공격 점검은 해당 step에서 실행해야 합니다.');
   }
@@ -48,6 +52,7 @@ export async function runAttackChecks(config) {
     method: 'GET',
     redirect: 'error',
     signal: AbortSignal.timeout(10000),
+    alephEvidence: { caseId: staticNoteAttackId, requestKey: 'read' },
   });
 
   let staticData = null;
@@ -76,6 +81,7 @@ export async function runAttackChecks(config) {
     method: 'GET',
     redirect: 'error',
     signal: AbortSignal.timeout(10000),
+    alephEvidence: { caseId: anonymousApiAttackId, requestKey: 'read' },
   });
 
   let apiError = null;
@@ -104,6 +110,7 @@ export async function runAttackChecks(config) {
     method: 'GET',
     redirect: 'error',
     signal: AbortSignal.timeout(10000),
+    alephEvidence: { caseId: deploymentIdentityAttackId, requestKey: 'read' },
   });
 
   let identityAvailable = false;
@@ -131,17 +138,17 @@ export async function runAttackChecks(config) {
 
   const attempts = [
     {
-      attackId: 'anonymous_note_read',
+      attackId: staticNoteAttackId,
       expected: '공개 data.json에서 가상 메모를 읽지 못함',
       observed: `HTTP ${staticResponse.status}`,
     },
     {
-      attackId: 'anonymous_api_note_read',
+      attackId: anonymousApiAttackId,
       expected: '로그인 없는 자료 API 요청을 401 또는 403 JSON 오류로 거부',
       observed: `HTTP ${apiResponse.status}`,
     },
     {
-      attackId: 'deployment_identity_available',
+      attackId: deploymentIdentityAttackId,
       expected: `배포 주소의 /aleph.json에서 ${config.step}단계 식별 정보를 확인`,
       observed: `HTTP ${identityResponse.status}`,
     },

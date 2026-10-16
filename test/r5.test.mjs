@@ -89,6 +89,14 @@ test('current attack checks validate three GET responses and leave unexecuted ch
     assert.equal(requests.every(request => request.init.method === 'GET'
       && request.init.redirect === 'error'), true);
     assert.equal(results.length, 6);
+    assert.deepEqual(
+      requests.map(request => request.init.alephEvidence),
+      results.slice(0, 3).map(result => ({
+        caseId: result.attackId,
+        requestKey: 'read',
+      })),
+    );
+    assert.equal(new Set(requests.map(request => request.init.alephEvidence.caseId)).size, 3);
     assert.deepEqual(results.map(result => result.observed), [
       'HTTP 200', 'HTTP 401', 'HTTP 200', 'not_run', 'not_run', 'not_run',
     ]);
