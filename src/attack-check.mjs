@@ -131,7 +131,7 @@ export async function runAttackChecks(config) {
 
   const attempts = [
     {
-      attackId: 'public_static_note_read',
+      attackId: 'anonymous_note_read',
       expected: '공개 data.json에서 가상 메모를 읽지 못함',
       observed: `HTTP ${staticResponse.status}`,
     },
