@@ -113,6 +113,8 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 지속성 탐지는 T1543·T1053 경보에서 미서명 서비스, 낯선 예약 작업, 시작 폴더 변경과 실행 경로·반복 신호를 함께 확인해 `8/8/8`로 block/alert/record 분류합니다. `npm.cmd run xdr -- persistence`로 다시 실행하며, block 후보만 테스트 프로세스 메모리에서 10분간 임시 거부하고 운영 DB나 사용자 계정은 변경하지 않습니다.
 
+권한 탈취 탐지는 T1068·T1078 경보에서 성공한 권한 전환, 관리자 그룹 편입, 낯선 출처·업무 외 사용의 결합을 확인해 `9/8/9`로 block/alert/record 분류합니다. `npm.cmd run xdr -- privilege`로 다시 실행하며, block 후보도 확인된 계정과 출발 주소 조합에만 10분간 적용하고 운영 세션은 철회하지 않습니다.
+
 ## 10단계: 복구 처리기의 사본 검증과 복원 뒤 재대조
 
 `POST /api/restore/:noteId`(`restoreRoute`)는 `src/note-restore.mjs`의 `restoreOneVerifiedNote` 순서로만 복원합니다.
