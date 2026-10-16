@@ -109,6 +109,8 @@ Supabase notes 테이블에서 PUBLIC·anon·authenticated의 직접 CRUD 권한
 
 웹 주입 검증은 `npm run xdr:run -- web-injection`으로 다시 실행합니다. 임시 거부 후보는 테스트 프로세스 메모리에서 출발 IP별 10분 동안만 유지되며 운영 방화벽에는 적용하지 않습니다.
 
+알려진 취약점 악용 탐지는 CVE-2021-44228 원격 조회 형태와 T1190 경보를 함께 확인해 `8/8/8`로 block/alert/record 분류합니다. `npm.cmd run xdr -- known-cve`로 다시 실행하며, block 후보의 출발 주소만 테스트 프로세스 메모리에서 10분간 임시 거부하고 운영 DB나 방화벽은 변경하지 않습니다.
+
 ## 10단계: 복구 처리기의 사본 검증과 복원 뒤 재대조
 
 `POST /api/restore/:noteId`(`restoreRoute`)는 `src/note-restore.mjs`의 `restoreOneVerifiedNote` 순서로만 복원합니다.

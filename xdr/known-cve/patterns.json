@@ -1,0 +1,21 @@
+[
+  {
+    "name": "Log4Shell remote lookup",
+    "cve": "CVE-2021-44228",
+    "technique": "T1190",
+    "condition": {
+      "all": [
+        { "field": "rule.mitre", "contains": "T1190" },
+        { "field": "rule.level", "greaterThanOrEqual": 10 },
+        {
+          "any": [
+            { "field": "data.url", "matches": "\\$\\{jndi:(?:ldap|ldaps|rmi|dns)://[^}]+}" },
+            { "field": "data.useragent", "matches": "\\$\\{jndi:(?:ldap|ldaps|rmi|dns)://[^}]+}" }
+          ]
+        }
+      ],
+      "note": "CVE 이름이나 jndi 단어만 있는 정상 문서는 일치시키지 않는다."
+    },
+    "evidence": "CVE-2021-44228의 JNDI 원격 조회 형태와 MITRE ATT&CK T1190 경보가 함께 있으면 공개 서비스 취약점 악용 시도로 본다."
+  }
+]
